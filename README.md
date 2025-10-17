@@ -1,4 +1,4 @@
-# MiniTune — Proposal
+# MiniTune — A Lightweight Music Streaming App
 
 ## Team Members
 | Name           | Email                        |
