@@ -8,8 +8,9 @@
 | Zixuan Huang   | chrim.huang@mail.utoronto.ca |
 
 ## Motivation
-Music apps are a great canvas to showcase real mobile capabilities: continuous audio playback, background controls, offline caching, push notifications, and clean navigation. MiniTune focuses on the essential experience—browse playlists, play 30-second previews (or royalty-free full tracks), favorite songs, and listen offline—while avoiding licensing issues.
-
+Music apps are a great canvas to showcase real mobile capabilities: continuous audio playback, background controls, offline caching, push notifications, and clean navigation. MiniTune focuses on the essential experience—browse playlists, play 30-second previews (or royalty-free full tracks), favorite songs, listen offline—while avoiding licensing issues and daily song recommendation notifications.
+- Target Users: Students and music enthusiasts who want to discover music and manage their music libraries.
+- Value: This project fully implements the core course objectives, including React Native (Expo + TypeScript), state management and persistence, device APIs, background audio, notifications, backend integration, and EAS deployment.
 ## Objectives
 - Build a polished RN app with smooth audio playback, background controls, and clean navigation.
 - Demonstrate state management with Redux Toolkit, persistence (AsyncStorage), REST integration, device APIs, and EAS deployment.
