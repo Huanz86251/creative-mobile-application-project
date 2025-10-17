@@ -27,9 +27,9 @@ Music apps are a great canvas to showcase real mobile capabilities: continuous a
 - *(Optional stretch)* Notifications for “new playlist” drops; simple realtime “Trending”.
 
 ## Plan
-- **Week 1 — Setup & Proposal**: Expo scaffold; theme; navigation skeleton (tabs + stacks); state store (Zustand/Redux). Choose backend (Supabase or Express) and seed sample data.
-- **Week 2 — Core Playback**: Track list UI; Now Playing; mini player; queue management; background audio and audio focus basics.
-- **Week 3 — Persistence & Auth**: Favorites; user playlists; AsyncStorage hydration; email/password auth; gated Library screens.
-- **Week 4 — Offline Mode**: Download manager; local file cache; storage quota & eviction; connectivity checks; offline UI states.
-- **Week 5 — Polish & (Optional) Notifications**: Push notifications (`expo-notifications`) or lightweight realtime feed; UX refinements; error states; performance passes.
-- **Week 6 — Delivery**: EAS build (Android APK/AAB; iOS TestFlight if feasible); final README/report; 1–5 min demo video; 4–5 min in-class presentation.
+**Week 1 — Setup & Proposal**: Expo scaffold; theme; navigation skeleton (tabs + stacks); state store (Zustand/Redux). Choose backend (Supabase or Express) and seed sample data.
+**Week 2 — Core Playback**: Track list UI; Now Playing; mini player; queue management; background audio and audio focus basics.
+**Week 3 — Persistence & Auth**: Favorites; user playlists; AsyncStorage hydration; email/password auth; gated Library screens.
+**Week 4 — Offline Mode**: Download manager; local file cache; storage quota & eviction; connectivity checks; offline UI states.
+**Week 5 — Polish & (Optional) Notifications**: Push notifications (`expo-notifications`) or lightweight realtime feed; UX refinements; error states; performance passes.
+**Week 6 — Delivery**: EAS build (Android APK/AAB; iOS TestFlight if feasible); final README/report; 1–5 min demo video; 4–5 min in-class presentation.
