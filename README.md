@@ -1,5 +1,10 @@
 # MiniTune — A Lightweight Music Streaming App
-
+## Team Members
+| Name           | Email                        |
+|----------------|------------------------------|
+| Xiangyu Liu    | swift.liu@mail.utoronto.ca   |
+| Zihao Gong     | zihao.gong@mail.utoronto.ca  |
+| Zixuan Huang   | chrim.huang@mail.utoronto.ca |
 
 
 ## Motivation
