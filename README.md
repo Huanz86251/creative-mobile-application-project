@@ -17,7 +17,7 @@ Music apps are a great canvas to showcase real mobile capabilities: continuous a
 - Demonstrate state management with Redux Toolkit, persistence (AsyncStorage), REST integration, device APIs, and EAS deployment.
 - Implement **≥ 2 advanced features**: target **Authentication** and **Offline Support**.
 - Deliver a GitHub repo with README, a short demo video, and an in-class presentation.
-We will use Expo to manage different pages, use Hooks to pass data between different pages, navigate to specific pages through Expo Router, use expo-sqlite to build a local song database and perform song searches, use Redux Toolkit for player queues, playback status and user information management, use expo-notifications to send daily song recommendations to users, use AudD as an API for listening to songs and identifying them, use expo-av to play songs and support background playback, and use Firebase to manage users.
+
 ## Features
 - **Browse & Search** playlists/tracks (API-backed metadata).
 - **Now Playing** + **Mini Player** (play/pause/seek, basic queue, repeat/shuffle minimal).
@@ -27,6 +27,7 @@ We will use Expo to manage different pages, use Hooks to pass data between diffe
 - **Advanced 1 — Authentication** (Firebase/Supabase email/password).
 - **Advanced 2 — Offline Mode**: download preview/RF tracks with `expo-file-system`; connectivity awareness (`expo-network`).
 - *(Optional stretch)* Notifications for “new playlist” drops; simple realtime “Trending”.
+We will use Expo to manage different pages, use Hooks to pass data between different pages, navigate to specific pages through Expo Router, use expo-sqlite to build a local song database and perform song searches, use Redux Toolkit for player queues, playback status and user information management, use expo-notifications to send daily song recommendations to users, use AudD as an API for listening to songs and identifying them, use expo-av to play songs and support background playback, and use Firebase to manage users.
 ---
 ## **Plan**
 
