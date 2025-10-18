@@ -11,6 +11,7 @@
 Music apps are a great canvas to showcase real mobile capabilities: continuous audio playback, background controls, offline caching, push notifications, and clean navigation. MiniTune focuses on the essential experience—browse playlists, play 30-second previews (or royalty-free full tracks), favorite songs, listen offline—while avoiding licensing issues and daily song recommendation notifications.
 - Target Users: Students and music enthusiasts who want to discover music and manage their music libraries.
 - Value: This project fully implements the core course objectives, including React Native (Expo + TypeScript), state management and persistence, device APIs, background audio, notifications, backend integration, and EAS deployment.
+---
 ## Objectives
 - Build a polished RN app with smooth audio playback, background controls, and clean navigation.
 - Demonstrate state management with Redux Toolkit, persistence (AsyncStorage), REST integration, device APIs, and EAS deployment.
@@ -26,6 +27,7 @@ Music apps are a great canvas to showcase real mobile capabilities: continuous a
 - **Advanced 1 — Authentication** (Firebase/Supabase email/password).
 - **Advanced 2 — Offline Mode**: download preview/RF tracks with `expo-file-system`; connectivity awareness (`expo-network`).
 - *(Optional stretch)* Notifications for “new playlist” drops; simple realtime “Trending”.
+---
 ## **Plan**
 
 **Week 1 — Setup & Core Structure:** Expo scaffold; app theme; navigation skeleton (tabs + stacks); global state store (**Redux Toolkit**); configure **Expo Router** and **Firebase** authentication skeleton.  
@@ -41,7 +43,7 @@ Perform **UI/UX refinements**, **error handling**, and **EAS build** (Android AP
 Finalize **README/report**, record **1–5 min demo video**, and prepare **4–5 min in-class presentation**.  
 **ZG:** Design polish & presentation | **SZ:** Notification & AudD integration | **ZH:** Build, documentation & final QA.  
 
----
+
 
 **Feasibility:**  
 The condensed 3-week timeline maintains balanced contributions among **ZG**, **SZ**, and **ZH**, with clearly defined weekly milestones.  
