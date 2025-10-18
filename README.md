@@ -8,9 +8,10 @@
 | Zixuan Huang   | chrim.huang@mail.utoronto.ca |
 
 ## Motivation
-Music apps are a great canvas to showcase real mobile capabilities: continuous audio playback, background controls, offline caching, push notifications, and clean navigation. MiniTune focuses on the essential experience—browse playlists, play 30-second previews (or royalty-free full tracks), favorite songs, listen offline—while avoiding licensing issues and daily song recommendation notifications.
-- Target Users: Students and music enthusiasts who want to discover music and manage their music libraries.
-- Value: This project fully implements the core course objectives, including React Native (Expo + TypeScript), state management and persistence, device APIs, background audio, notifications, backend integration, and EAS deployment.
+Music apps are a great canvas to showcase real mobile capabilities: continuous audio playback, background controls, offline caching, push notifications, and clean navigation. MiniTune focuses on the essential experience—browse playlists, play 30-second previews (or royalty-free full tracks), favorite songs, and listen offline—while avoiding licensing issues.
+- Target Users: Students and music enthusiasts who want to discover music and manage their music libraries without large commercial apps filled with advertisements. 
+- Value: For our team, this project fully implements React Native (Expo + TypeScript), state management and persistence, device APIs, background audio, notifications, backend integration, and EAS deployment, which can help us systematically practice and understand the core course objectives. 
+	 For users, compared to commercial software, our architecture is lighter, takes up less user storage space. We also provide more flexible custom services, such as allowing users to upload pictures as app backgrounds, etc.
 ---
 ## Objectives
 - Build a polished RN app with smooth audio playback, background controls, and clean navigation.
@@ -26,7 +27,11 @@ Music apps are a great canvas to showcase real mobile capabilities: continuous a
 - **Background Audio** via `expo-av`.
 - **Advanced 1 — Authentication** (Firebase/Supabase email/password).
 - **Advanced 2 — Offline Mode**: download preview/RF tracks with `expo-file-system`; connectivity awareness (`expo-network`).
-- *(Optional stretch)* Notifications for “new playlist” drops; simple realtime “Trending”.
+- *(Optional stretch)* Advanced Features:
+  - Notifications for new playlist drops and simple realtime “Trending”.
+  - Customizable UI with DIY background themes and button styles for personalization.
+  - Integration with external services such as music recognition APIs.
+
 
 We will use Expo to manage different pages, use Hooks to pass data between different pages, navigate to specific pages through Expo Router, use expo-sqlite to build a local song database and perform song searches, use Redux Toolkit for player queues, playback status and user information management, use expo-notifications to send daily song recommendations to users, use AudD as an API for listening to songs and identifying them, use expo-av to play songs and support background playback, and use Firebase to manage users.
 
