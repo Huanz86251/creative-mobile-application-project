@@ -1,11 +1,6 @@
 # MiniTune — A Lightweight Music Streaming App
 
-## Team Members
-| Name           | Email                        |
-|----------------|------------------------------|
-| Xiangyu Liu    | swift.liu@mail.utoronto.ca   |
-| Zihao Gong     | zihao.gong@mail.utoronto.ca  |
-| Zixuan Huang   | chrim.huang@mail.utoronto.ca |
+
 
 ## Motivation
 Music apps are a great canvas to showcase real mobile capabilities: continuous audio playback, background controls, offline caching, push notifications, and clean navigation. MiniTune focuses on the essential experience—browse playlists, play 30-second previews (or royalty-free full tracks), favorite songs, and listen offline—while avoiding licensing issues.
