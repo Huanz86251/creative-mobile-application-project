@@ -31,22 +31,31 @@ Music apps are a great canvas to showcase real mobile capabilities: continuous a
 ## **Plan**
 
 **Week 1 — Setup & Core Structure:** Expo scaffold; app theme; navigation skeleton (tabs + stacks); global state store (**Redux Toolkit**); configure **Expo Router** and **Firebase** authentication skeleton.  
-Set up **expo-sqlite** local database and prepare song schema.  
+Initialize **expo-sqlite** local database and prepare song schema.  
 **ZG:** Navigation & theme | **SZ:** Redux setup & user state | **ZH:** Firebase & SQLite configuration.  
 
-**Week 2 — Playback & Offline Features:** Implement **track list UI**, **Now Playing**, **mini player**, and **queue management** with **expo-av** for background playback.  
-Add **Favorites**, **offline mode**, **file caching**, and **connectivity checks**.  
-**ZG:** Playback UI & offline UX | **SZ:** Audio logic & download manager | **ZH:** Data flow, storage management & playlist persistence.  
+**Week 2 — Core Playback:** Build **Track List UI**, **Now Playing**, **Mini Player**, and **queue management** using **expo-av** for background playback.  
+Implement playback controls, progress tracking, and basic audio focus handling.  
+**ZG:** Playback UI & styling | **SZ:** Audio logic & expo-av integration | **ZH:** Queue data flow & syncing.  
 
-**Week 3 — Notifications, Polish & Delivery:** Integrate **expo-notifications** for daily song recommendations and **AudD API** for song recognition.  
-Perform **UI/UX refinements**, **error handling**, and **EAS build** (Android APK/AAB, iOS TestFlight if feasible).  
-Finalize **README/report**, record **1–5 min demo video**, and prepare **4–5 min in-class presentation**.  
-**ZG:** Design polish & presentation | **SZ:** Notification & AudD integration | **ZH:** Build, documentation & final QA.  
+**Week 3 — Local Database & Auth:** Implement **Favorites**, **user playlists**, and **expo-sqlite** CRUD operations.  
+Add **Firebase authentication** (email/password) and gated Library screens.  
+**ZG:** Auth UI & navigation | **SZ:** Firebase logic & user state | **ZH:** SQLite playlist storage & data persistence.  
 
+**Week 4 — Offline & Notifications:** Add **offline mode**, **local cache**, and **connectivity checks**.  
+Integrate **expo-notifications** for daily song recommendations and **AudD API** for song recognition.  
+**ZG:** Offline UI/UX | **SZ:** Notification & AudD integration | **ZH:** Cache structure & file system management.  
 
+**Week 5 — Deployment & Presentation:** Polish UI/UX; fix bugs and optimize performance.  
+Generate **EAS build** (**Android APK/AAB**, **iOS TestFlight** if feasible); finalize **README/report**; record **1–5 min demo video**; prepare **4–5 min in-class presentation**.  
+**ZG:** Demo & presentation design | **SZ:** Build & deployment | **ZH:** Documentation & QA testing.  
+
+---
 
 **Feasibility:**  
-The condensed 3-week timeline maintains balanced contributions among **ZG**, **SZ**, and **ZH**, with clearly defined weekly milestones.  
-By focusing on essential features—playback, offline mode, and user interaction—the project remains achievable while delivering a fully functional, polished music app within the deadline.
+The 5-week timeline maintains a balanced workload among **ZG**, **SZ**, and **ZH**, with clear deliverables each week.  
+Core development (Weeks 1–4) ensures all primary app features—authentication, playback, and offline mode—are functional before final polish and deployment.  
+All chosen frameworks (**Expo**, **Expo Router**, **Redux Toolkit**, **Firebase**, **expo-sqlite**, **expo-av**) are stable and well-documented, ensuring the project can be confidently completed on time.
+
 
 
