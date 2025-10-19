@@ -1,0 +1,6 @@
+﻿{
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": { "source.fixAll.eslint": "explicit" },
+  "eslint.alwaysShowStatus": true,
+  "files.eol": "\n"
+}

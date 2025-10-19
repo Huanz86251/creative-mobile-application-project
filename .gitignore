@@ -1,0 +1,51 @@
+﻿# dependencies
+node_modules/
+
+# Expo / build caches
+.expo/
+dist/
+build/
+web-build/
+expo-env.d.ts
+
+
+android/
+ios/
+
+# Metro
+.metro-health-check*
+
+.metro-cache/
+
+# Logs
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
+
+# Env / secrets
+.env*
+*.pem
+*.p12
+*.p8
+*.jks
+*.keystore
+*.mobileprovision
+google-services.json
+GoogleService-Info.plist
+
+# TypeScript
+*.tsbuildinfo
+
+# Tests / coverage 
+coverage/

@@ -1,0 +1,10 @@
+﻿{
+  "recommendations": [
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    "eamodio.gitlens",
+    "mhutchie.git-graph",
+    "expo.vscode-expo-tools",
+    "msjsdiag.vscode-react-native"
+  ]
+}
