@@ -1,6 +1,7 @@
 {
   "extends": "expo/tsconfig.base",
   "compilerOptions": {
+    "types": ["nativewind/types", "expo-router/types"],
     "strict": true,
     "paths": {
       "@/*": [
@@ -12,6 +13,7 @@
     "**/*.ts",
     "**/*.tsx",
     ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "expo-env.d.ts",
+    "router.d.ts"
   ]
 }

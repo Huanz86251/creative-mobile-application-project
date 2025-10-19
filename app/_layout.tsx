@@ -1,4 +1,7 @@
-﻿import { Stack } from "expo-router";
+﻿import 'react-native-reanimated';
+
+import { Stack } from "expo-router";
+
 export default function RootLayout() {
   return <Stack screenOptions={{ headerTitleAlign: "center" }} />;
 }
