@@ -1,0 +1,15 @@
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "jsx": "react-jsx",                     // ✅ 启用 React JSX 支持
+    "allowJs": true,                        // 可选：允许导入 .js 文件
+    "types": ["react", "react-native", "expo"]  // ✅ 确保类型可识别
+  },
+  "include": [
+    "**/*.ts",
+    "**/*.tsx",
+    ".expo/types/**/*.ts",
+    "expo-env.d.ts"
+  ]
+}
