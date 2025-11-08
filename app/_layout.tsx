@@ -1,11 +1,12 @@
 import { Stack } from "expo-router";
-import { StatusBar } from "expo-status-bar";
+import { PlayerProvider } from "../context/PlayerContext";
+import NowPlayingBar from "../components/NowPlayingBar";
 
 export default function Layout() {
   return (
-    <>
+    <PlayerProvider>
       <Stack screenOptions={{ headerShown: false }} />
-      <StatusBar style="light" />
-    </>
+      <NowPlayingBar />
+    </PlayerProvider>
   );
 }
