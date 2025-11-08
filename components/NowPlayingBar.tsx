@@ -3,29 +3,13 @@ import { usePlayer } from "../context/PlayerContext";
 import { useRouter } from "expo-router";
 
 export default function NowPlayingBar() {
-  const { currentTrack } = usePlayer();
+  const { currentTrack, isPlaying, togglePlayPause } = usePlayer();
   const router = useRouter();
 
-  if (!currentTrack) {
-    console.log("🎵 No current track found");
-    return (
-        <View
-        style={{
-            position: "absolute",
-            bottom: 0,
-            left: 0,
-            right: 0,
-            backgroundColor: "red",
-            padding: 10,
-        }}
-        >
-        <Text style={{ color: "#fff" }}>No track selected</Text>
-        </View>
-    );
-    }
+  if (!currentTrack) return null;
 
   return (
-    <TouchableOpacity
+    <View
       style={{
         position: "absolute",
         bottom: 0,
@@ -38,26 +22,47 @@ export default function NowPlayingBar() {
         borderTopWidth: 1,
         borderTopColor: "#444",
       }}
-      onPress={() =>
-        router.push({
-          pathname: "/track/[id]",
-          params: { id: currentTrack.trackId.toString() },
-        })
-      }
     >
-      <Image
-        source={{ uri: currentTrack.artworkUrl60 }}
-        style={{ width: 50, height: 50, borderRadius: 4 }}
-      />
-      <View style={{ flex: 1, marginLeft: 10 }}>
-        <Text style={{ color: "#fff", fontWeight: "bold" }} numberOfLines={1}>
-          {currentTrack.trackName}
+      {/* 点击左侧歌曲信息跳转详情页 */}
+      <TouchableOpacity
+        style={{ flexDirection: "row", flex: 1, alignItems: "center" }}
+        onPress={() =>
+          router.push({
+            pathname: "/track/[id]",
+            params: { id: currentTrack.trackId.toString() },
+          })
+        }
+      >
+        <Image
+          source={{ uri: currentTrack.artworkUrl60 }}
+          style={{ width: 50, height: 50, borderRadius: 4 }}
+        />
+        <View style={{ flex: 1, marginLeft: 10 }}>
+          <Text style={{ color: "#fff", fontWeight: "bold" }} numberOfLines={1}>
+            {currentTrack.trackName}
+          </Text>
+          <Text style={{ color: "#aaa" }} numberOfLines={1}>
+            {currentTrack.artistName}
+          </Text>
+        </View>
+      </TouchableOpacity>
+
+      {/* 右侧播放/暂停按钮 */}
+      <TouchableOpacity
+        onPress={togglePlayPause}
+        style={{
+          marginLeft: 10,
+          backgroundColor: "#FF9500",
+          borderRadius: 20,
+          padding: 8,
+          justifyContent: "center",
+          alignItems: "center",
+        }}
+      >
+        <Text style={{ color: "#fff", fontSize: 16, fontWeight: "bold" }}>
+          {isPlaying ? "⏸" : "▶️"}
         </Text>
-        <Text style={{ color: "#aaa" }} numberOfLines={1}>
-          {currentTrack.artistName}
-        </Text>
-      </View>
-      <Text style={{ color: "#1DB954", fontWeight: "bold" }}>▶</Text>
-    </TouchableOpacity>
+      </TouchableOpacity>
+    </View>
   );
 }

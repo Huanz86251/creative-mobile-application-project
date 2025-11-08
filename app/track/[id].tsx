@@ -1,51 +1,31 @@
-import { View, Text, Image, StyleSheet } from "react-native";
-import { useLocalSearchParams, router } from "expo-router";
-import { useState, useEffect } from "react";
-import { PlayerControls } from "../../components/PlayerControls";
+import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
+import { usePlayer } from "../../context/PlayerContext";
+import { router } from "expo-router";
 
 export default function TrackDetails() {
-  const { index, tracks } = useLocalSearchParams<{
-    index: string;
-    tracks: string;
-  }>();
+  const { currentTrack, isPlaying, togglePlayPause } = usePlayer();
 
-  const allTracks = tracks ? JSON.parse(tracks) : [];
-  const startIndex = parseInt(index);
-  const [currentIndex, setCurrentIndex] = useState(startIndex);
-
-  // 当前播放歌曲
-  const currentTrack = allTracks[currentIndex];
-
-  // 当 PlayerControls 切歌时更新当前索引
-  const handleTrackChange = (newIndex: number) => {
-    setCurrentIndex(newIndex);
-  };
-
-  useEffect(() => {
-    if (!currentTrack) return;
-  }, [currentIndex]);
+  if (!currentTrack) {
+    return (
+      <View style={styles.container}>
+        <Text>No track selected</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
-      {/* 返回按钮 */}
       <Text style={styles.back} onPress={() => router.back()}>
         ← Back
       </Text>
 
-      {/* 动态封面 */}
-      <Image
-        source={{ uri: currentTrack?.artworkUrl100 }}
-        style={styles.cover}
-      />
-      <Text style={styles.title}>{currentTrack?.trackName}</Text>
-      <Text style={styles.artist}>{currentTrack?.artistName}</Text>
+      <Image source={{ uri: currentTrack.artworkUrl100 }} style={styles.cover} />
+      <Text style={styles.title}>{currentTrack.trackName}</Text>
+      <Text style={styles.artist}>{currentTrack.artistName}</Text>
 
-      {/* 播放控制器 */}
-      <PlayerControls
-        allTracks={allTracks}
-        startIndex={currentIndex}
-        onTrackChange={handleTrackChange}
-      />
+      <TouchableOpacity style={styles.button} onPress={togglePlayPause}>
+        <Text style={styles.buttonText}>{isPlaying ? "⏸ Pause" : "▶️ Play"}</Text>
+      </TouchableOpacity>
     </View>
   );
 }
@@ -64,23 +44,14 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     marginBottom: 24,
   },
-  title: {
-    fontSize: 22,
-    fontWeight: "bold",
-    textAlign: "center",
-    marginBottom: 6,
+  title: { fontSize: 22, fontWeight: "bold", marginBottom: 6 },
+  artist: { fontSize: 18, color: "gray", marginBottom: 16 },
+  button: {
+    backgroundColor: "#1DB954",
+    paddingVertical: 10,
+    paddingHorizontal: 40,
+    borderRadius: 25,
   },
-  artist: {
-    fontSize: 18,
-    color: "gray",
-    textAlign: "center",
-    marginBottom: 16,
-  },
-  back: {
-    position: "absolute",
-    top: 50,
-    left: 20,
-    fontSize: 18,
-    color: "blue",
-  },
+  buttonText: { color: "#fff", fontSize: 18 },
+  back: { position: "absolute", top: 50, left: 20, fontSize: 18, color: "blue" },
 });
