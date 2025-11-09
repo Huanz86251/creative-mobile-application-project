@@ -4,19 +4,24 @@
     "target": "ES2020",
     "module": "ESNext",
     "moduleResolution": "bundler",
-    "jsx": "react-native",
+    "jsx": "react-jsx",
     "allowJs": true,
     "strict": true,
     "noEmit": true,
     "resolveJsonModule": true,
-    "types": ["jest", "react", "react-native", "expo"],
+    "types": [
+      "jest",
+      "react",
+      "react-native",
+      "expo"
+    ],
     "baseUrl": "."
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx",
-    ".expo/types/**/*.ts",
-    "expo-env.d.ts"
+    "**/*.tsx"
   ],
-  "exclude": ["node_modules"]
+  "exclude": [
+    "node_modules"
+  ]
 }
