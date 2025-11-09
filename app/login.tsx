@@ -1,9 +1,10 @@
-// app/login.tsx
+
 import { useEffect, useRef, useState, useCallback } from "react";
 import { View, Text, TextInput, Button, Alert } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { signIn, signUp, signOut, resendSignUpEmail } from "../cloudapi/auth";
+import FloatingBack from "../components/Floatback";
 
 export default function Login() {
   const router = useRouter();
@@ -78,7 +79,7 @@ export default function Login() {
       console.log("[LOGIN] signIn payload:", { email: !!email.trim(), pwdLen: password.length });
       await signIn(email.trim(), password);
       Alert.alert("Signed in");
-      // 不在这里反复 replace 循环跳转；按一次即可
+ 
       router.replace("/library");
     } catch (e: any) {
       const msg = (e.message ?? String(e)).toLowerCase();
@@ -152,7 +153,7 @@ export default function Login() {
   const authed = !!userId;
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 }}>
+    <View style={{ flex: 1, padding: 16, gap: 12 ,backgroundColor: "transparent"}}>
       <Text style={{ fontSize: 22, fontWeight: "700" }}>Welcome</Text>
 
       {authed ? (
@@ -203,6 +204,7 @@ export default function Login() {
           </View>
         </>
       )}
+      <FloatingBack />
     </View>
   );
 }

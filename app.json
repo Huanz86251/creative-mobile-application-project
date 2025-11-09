@@ -3,6 +3,7 @@
     "name": "assignment-4",
     "slug": "assignment-4",
     "version": "1.0.0",
+    "jsEngine": "jsc",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

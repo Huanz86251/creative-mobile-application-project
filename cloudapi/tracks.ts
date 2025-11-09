@@ -14,55 +14,79 @@ export type TrackRow = {
   tags: string[];
   themes: string[];
 };
-//return newest audio list,s ort by created_at
-export async function listTracks(limit=50, offset=0): Promise<TrackRow[]> {
+
+
+const like = (s: string, mode: "contains" | "starts" | "ends" | "exact" = "contains") => {
+  const core = s.replace(/[%_]/g, "\\$&"); 
+  if (mode === "exact") return core;
+  if (mode === "starts") return `${core}%`;
+  if (mode === "ends") return `%${core}`;
+  return `%${core}%`;
+};
+
+// newest list
+export async function listTracks(limit = 50, offset = 0): Promise<TrackRow[]> {
   const { data, error } = await supabase
     .from("tracks")
     .select("id,title,artist,duration_sec,object_path,artwork_url,instrumental,is_public,genre,language,tags,themes")
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as TrackRow[];
 }
 
-export type SearchRow = TrackRow & { rank?: number | null, likes_count?: number, liked?: boolean };
-//search music
-export async function searchTracks(q: string, limit=20, offset=0): Promise<SearchRow[]> {
+export type SearchRow = TrackRow & { rank?: number | null; likes_count?: number; liked?: boolean };
+
+
+export async function searchTracks(q: string, limit = 20, offset = 0): Promise<SearchRow[]> {
   const { data, error } = await supabase.rpc("search_tracks", { q, lim: limit, off: offset });
   if (error) throw error;
-  // `search_tracks` returns a subset; hydrate minimal fields
-  return (data ?? []) as any;
+  return (data ?? []) as SearchRow[];
 }
-//get music by singer
-export async function listByArtist(artist: string, limit=50, offset=0): Promise<TrackRow[]> {
+
+// retrieve by singer
+export async function listByArtist(artist: string, limit = 50, offset = 0): Promise<TrackRow[]> {
   const { data, error } = await supabase
     .from("tracks")
     .select("id,title,artist,duration_sec,object_path,artwork_url,instrumental,is_public,genre,language,tags,themes")
-    .ilike("artist", artist)  // exact or pass `%name%` yourself
+    .ilike("artist", like(artist, "contains")) // e.g. %name%
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as TrackRow[];
 }
-//list audio by different type, like "rock", "pop", "jazz"
-export async function listByGenre(genre: string, limit=50, offset=0): Promise<TrackRow[]> {
+
+// retrieve by style
+export async function listByGenre(genre: string, limit = 50, offset = 0): Promise<TrackRow[]> {
   const { data, error } = await supabase
     .from("tracks")
     .select("id,title,artist,duration_sec,object_path,artwork_url,instrumental,is_public,genre,language,tags,themes")
-    .ilike("genre", genre)
+    .ilike("genre", like(genre, "contains"))
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as TrackRow[];
 }
-//list audio by tag
-export async function listByTag(tag: string, limit=50, offset=0): Promise<TrackRow[]> {
+
+// retrieve by TAG
+export async function listByTag(tag: string, limit = 50, offset = 0): Promise<TrackRow[]> {
   const { data, error } = await supabase
     .from("tracks")
     .select("id,title,artist,duration_sec,object_path,artwork_url,instrumental,is_public,genre,language,tags,themes")
-    .contains("tags", [tag]) // exact tag match
+    .contains("tags", [tag])
     .order("created_at", { ascending: false })
     .range(offset, offset + limit - 1);
   if (error) throw error;
-  return data ?? [];
+  return (data ?? []) as TrackRow[];
+}
+
+// batch retrieve by ID
+export async function getTracksByIds(ids: string[]): Promise<TrackRow[]> {
+  if (!ids.length) return [];
+  const { data, error } = await supabase
+    .from("tracks")
+    .select("id,title,artist,duration_sec,object_path,artwork_url,instrumental,is_public,genre,language,tags,themes")
+    .in("id", ids);
+  if (error) throw error;
+  return (data ?? []) as TrackRow[];
 }
