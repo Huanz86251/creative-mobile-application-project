@@ -1,6 +1,6 @@
 import { View, Text, FlatList, TextInput, ActivityIndicator, Alert,Button } from "react-native";
 import { useEffect, useState } from "react";
-import { Link } from "expo-router";
+import { Link ,useRouter} from "expo-router";
 import { TrackListItem } from "../components/TrackListItem";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Track } from "../features/tracks/tracksSlice";
@@ -10,6 +10,7 @@ export default function HomeScreen() {
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
   const [artist, setArtist] = useState("");
+  const router = useRouter();
 
   // 随机歌手列表
   const artists = ["Taylor Swift", "Ed Sheeran", "Drake", "Adele", "Justin Bieber", "The Weeknd", "Bruno Mars"];
