@@ -12,6 +12,7 @@
   "dependencies": {
     "@react-native-async-storage/async-storage": "^2.2.0",
     "@reduxjs/toolkit": "^2.9.0",
+    "@supabase/supabase-js": "^2.80.0",
     "expo": "~54.0.13",
     "expo-audio": "~1.0.14",
     "expo-av": "~16.0.7",
@@ -39,5 +40,10 @@
       "node_modules/(?!(jest-)?react-native|@react-native(-community)?|@react-native-async-storage/async-storage|@react-native-picker/picker|@react-navigation/|@sentry/react-native|react-redux|@reduxjs/toolkit|expo(-.*)?|immer)"
     ]
   },
-  "private": true
+  "private": true,
+  "overrides": {
+    "react-dom": "19.1.0",
+    "react-server-dom-webpack": "19.1.0",
+    "react-test-renderer": "19.1.0"
+  }
 }
