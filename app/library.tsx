@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Platform } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -8,65 +8,94 @@ import FloatingBack from "../components/Floatback";
 import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
 import { listTracks, searchTracks, listByArtist, listByGenre, type TrackRow } from "../cloudapi/tracks";
 import * as FavoritesApi from "../cloudapi/favorites";
+import { getLikesForIds, onFavoriteChanged } from "../cloudapi/favorites";
 import { signOut } from "../cloudapi/auth";
 
-import { useBackground } from "../context/Background"; 
+import { useBackground } from "../context/Background";
 import { pickAndSetBackgroundCover, clearBackground } from "../storage/background";
 
 import { downloadTrack, getDownloadedIndex } from "../storage/downloader";
 
 type Row = TrackRow & { likes_count?: number; liked?: boolean };
-
 const D = (...args: any[]) => console.log("[LIB DEBUG]", ...args);
 
 export default function Library() {
   const router = useRouter();
+
   const [q, setQ] = useState("");
   const [artist, setArtist] = useState("");
   const [genre, setGenre] = useState("");
+
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [downloaded, setDownloaded] = useState<Record<string, string>>({});
 
-  const bg = useBackground(); // global background controller
+  const rowsRef = useRef<Row[]>([]);
+  useEffect(() => { rowsRef.current = rows; }, [rows]);
 
-  // Guard: redirect to /login if no session
+  const bg = useBackground();
+
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      D("session?", !!session);
       if (!session) router.replace("/login");
     })();
   }, [router]);
 
-  // Refresh local download index when screen focuses
   useFocusEffect(
     useCallback(() => {
-      refreshDownloads();
+      (async () => {
+        await refreshDownloads();
+        await refreshLikesForCurrent();
+      })();
       return () => {};
     }, [])
   );
 
-  // Initial load: local downloads + latest tracks
   useEffect(() => {
+    let unsub: (() => void) | undefined;
     (async () => {
       await refreshDownloads();
       await initialLoad();
+      unsub = onFavoriteChanged(({ track_id, liked, likes_count }) => {
+        setRows(prev => prev.map(r => r.id === track_id ? { ...r, liked, likes_count } : r));
+      });
     })();
+    return () => { try { unsub?.(); } catch {} };
   }, []);
 
   async function refreshDownloads() {
     const idx = await getDownloadedIndex();
-    D("downloaded index keys:", Object.keys(idx));
     setDownloaded(idx);
+  }
+
+  async function refreshLikesForCurrent() {
+    const ids = rowsRef.current.map(r => r.id);
+    if (!ids.length) return;
+    try {
+      const map = await getLikesForIds(ids);
+      setRows(prev => prev.map(r => {
+        const m = map[r.id];
+        return m ? { ...r, liked: m.liked, likes_count: m.likes_count } : r;
+      }));
+    } catch {}
+  }
+
+  async function mergeLikes(base: Row[]): Promise<Row[]> {
+    if (!base.length) return base;
+    const map = await getLikesForIds(base.map(r => r.id));
+    return base.map(r => {
+      const m = map[r.id];
+      return m ? { ...r, liked: m.liked, likes_count: m.likes_count } : r;
+    });
   }
 
   async function initialLoad() {
     setBusy(true);
     try {
       const list = await listTracks(50, 0);
-      D("initial rows:", list.length);
-      setRows(list);
+      const withLikes = await mergeLikes(list as Row[]);
+      setRows(withLikes);
     } finally {
       setBusy(false);
     }
@@ -80,8 +109,8 @@ export default function Library() {
       else if (artist.trim()) data = await listByArtist(artist.trim(), 40, 0);
       else if (genre.trim()) data = await listByGenre(genre.trim(), 40, 0);
       else data = await listTracks(50, 0);
-      D("search result:", data.length);
-      setRows(data);
+      const withLikes = await mergeLikes(data);
+      setRows(withLikes);
     } catch (e: any) {
       Alert.alert("Search error", e.message ?? String(e));
     } finally {
@@ -93,7 +122,7 @@ export default function Library() {
     try {
       setBusy(true);
       const url = await getSignedDownloadUrl(t.object_path, 600);
-      if (!url) throw new Error("No signed URL (check storage path / RLS)");
+      if (!url) throw new Error("No signed URL");
       const local = await downloadTrack(t.id, url, `${t.id}.mp3`);
       await refreshDownloads();
       Alert.alert("Downloaded", Platform.OS === "web" ? "Saved by browser download" : local);
@@ -118,44 +147,24 @@ export default function Library() {
     router.replace("/login");
   }
 
-  // Dev helpers (optional)
-  async function debugListBucket() {
-    try {
-      const root = await supabase.storage.from("music").list("", { limit: 100 });
-      D("bucket list /:", root.data?.map(x => x.name), root.error?.message);
-      const sub = await supabase.storage.from("music").list("music", { limit: 100 });
-      D("bucket list /music:", sub.data?.map(x => x.name), sub.error?.message);
-      Alert.alert("Listed", "See Metro console logs.");
-    } catch (e: any) {
-      Alert.alert("List error", e.message ?? String(e));
-    }
-  }
-  function debugDumpPaths() {
-    D("rows object_path (first 10):", rows.slice(0, 10).map(r => r.object_path));
-    Alert.alert("Dumped", "See Metro console logs.");
-  }
-
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12 ,backgroundColor: "transparent"}}>
-      {/* Header */}
+    <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "transparent" }}>
       <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
         <Text style={{ fontSize: 22, fontWeight: "700" }}>Library</Text>
         <Button title="Sign out" onPress={onSignOut} />
       </View>
 
-      {/* Quick nav */}
       <View style={{ flexDirection: "row", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
         <Button title="Open Downloads" onPress={() => router.push("/downloads")} />
         <Button title="My Favorites" onPress={() => router.push("/favorites")} />
-        {/* Background actions (local-only) */}
         <Button
           title="Set Background"
           onPress={async () => {
             try {
               setBusy(true);
-              await pickAndSetBackgroundCover(); // Pick → cover crop → save
-              await bg.reload();                  // Apply globally
-              Alert.alert("Done", "Background set!");
+              await pickAndSetBackgroundCover();
+              await bg.reload();
+              Alert.alert("Done", "Background set");
             } catch (e: any) {
               Alert.alert("Error", e.message ?? String(e));
             } finally {
@@ -167,14 +176,13 @@ export default function Library() {
           title="Clear Background"
           onPress={async () => {
             setBusy(true);
-            await clearBackground(); // Remove local bg
-            await bg.reload();       // Back to solid color
+            await clearBackground();
+            await bg.reload();
             setBusy(false);
           }}
         />
       </View>
 
-      {/* Search form */}
       <View style={{ gap: 6 }}>
         <TextInput
           placeholder="Search (title/artist/tags/lyrics)"
@@ -183,55 +191,49 @@ export default function Library() {
           style={{ borderWidth: 1, borderRadius: 8, padding: 8 }}
         />
         <View style={{ flexDirection: "row", gap: 8 }}>
-          <TextInput
-            placeholder="Filter by artist"
-            value={artist}
-            onChangeText={setArtist}
-            style={{ flex: 1, borderWidth: 1, borderRadius: 8, padding: 8 }}
-          />
-          <TextInput
-            placeholder="Filter by genre"
-            value={genre}
-            onChangeText={setGenre}
-            style={{ flex: 1, borderWidth: 1, borderRadius: 8, padding: 8 }}
-          />
+          <TextInput placeholder="Filter by artist" value={artist} onChangeText={setArtist}
+            style={{ flex: 1, borderWidth: 1, borderRadius: 8, padding: 8 }} />
+          <TextInput placeholder="Filter by genre" value={genre} onChangeText={setGenre}
+            style={{ flex: 1, borderWidth: 1, borderRadius: 8, padding: 8 }} />
         </View>
         <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
           <Button title={busy ? "Working..." : "Search"} onPress={doSearch} disabled={busy} />
-          <Button
-            title="Reset"
-            onPress={() => {
-              setQ("");
-              setArtist("");
-              setGenre("");
-              initialLoad();
-            }}
-          />
-          {__DEV__ && <Button title="List bucket" onPress={debugListBucket} />}
-          {__DEV__ && <Button title="Dump paths" onPress={debugDumpPaths} />}
+          <Button title="Reset" onPress={() => { setQ(""); setArtist(""); setGenre(""); initialLoad(); }} />
         </View>
       </View>
 
-      {/* List */}
       <FlatList
         data={rows}
+        style={{ backgroundColor: "transparent" }}
         keyExtractor={i => i.id}
         contentContainerStyle={{ paddingVertical: 8 }}
         renderItem={({ item }) => {
           const isDownloaded = !!downloaded[item.id];
           return (
             <View style={{ paddingVertical: 10, borderBottomWidth: 0.5, borderColor: "#ddd" }}>
-              <Text style={{ fontSize: 16, fontWeight: "600" }}>{item.title}</Text>
+              {/* Title → go to details (no Link, only Touchable) */}
+              <TouchableOpacity onPress={() => router.push(`/track/${item.id}`)}>
+                <Text style={{ fontSize: 16, fontWeight: "600", textDecorationLine: "underline" }}>
+                  {item.title}
+                </Text>
+              </TouchableOpacity>
+
               <Text style={{ opacity: 0.7 }}>{item.artist ?? "Unknown"} · {item.genre ?? "n/a"}</Text>
               <Text style={{ opacity: 0.6, fontSize: 12 }}>{item.object_path}</Text>
-              <View style={{ flexDirection: "row", gap: 14, marginTop: 6 }}>
+
+              <View style={{ flexDirection: "row", marginTop: 6 }}>
                 <TouchableOpacity onPress={() => onLike(item)}>
-                  <Text style={{ color: item.liked ? "tomato" : "#333" }}>★ {item.likes_count ?? 0}</Text>
+                  <Text style={{ color: item.liked ? "tomato" : "#333", marginRight: 16 }}>
+                    ★ {item.likes_count ?? 0}
+                  </Text>
                 </TouchableOpacity>
                 <TouchableOpacity onPress={() => onDownload(item)} disabled={busy}>
-                  <Text style={{ color: isDownloaded ? "green" : "#007aff" }}>
+                  <Text style={{ color: isDownloaded ? "green" : "#007aff", marginRight: 16 }}>
                     {isDownloaded ? "Downloaded ✓" : "Download"}
                   </Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={() => router.push(`/track/${item.id}`)}>
+                  <Text style={{ color: "#4da3ff" }}>Details</Text>
                 </TouchableOpacity>
               </View>
             </View>
