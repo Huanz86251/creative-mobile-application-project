@@ -1,11 +1,12 @@
 import { View, Text, FlatList, TextInput, ActivityIndicator, Alert,Button } from "react-native";
 import { useEffect, useState } from "react";
-import { Link } from "expo-router";
+import { Link, useRouter } from "expo-router";
 import { TrackListItem } from "../components/TrackListItem";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Track } from "../features/tracks/tracksSlice";
 
 export default function HomeScreen() {
+  const router = useRouter();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -104,7 +105,10 @@ export default function HomeScreen() {
       <Link href="/favorites" style={{ color: "blue", marginTop: 16 }}>
         Go to Favorites →
       </Link>
-      <View style={{ marginTop: 12 }}>
+
+      <View style={{ marginTop: 12, gap: 8 }}>
+        <Button title="Sign in / Account" onPress={() => router.push("/login")} />
+        <Button title="Open Cloud Library" onPress={() => router.push("/library")} />
         <Button title="Open Cloud Test" onPress={() => router.push("/cloud-test")} />
       </View>
     </View>
