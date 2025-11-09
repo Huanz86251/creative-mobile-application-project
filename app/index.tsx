@@ -1,4 +1,4 @@
-import { View, Text, FlatList, TextInput, ActivityIndicator, Alert } from "react-native";
+import { View, Text, FlatList, TextInput, ActivityIndicator, Alert,Button } from "react-native";
 import { useEffect, useState } from "react";
 import { Link } from "expo-router";
 import { TrackListItem } from "../components/TrackListItem";
@@ -104,6 +104,9 @@ export default function HomeScreen() {
       <Link href="/favorites" style={{ color: "blue", marginTop: 16 }}>
         Go to Favorites →
       </Link>
+      <View style={{ marginTop: 12 }}>
+        <Button title="Open Cloud Test" onPress={() => router.push("/cloud-test")} />
+      </View>
     </View>
   );
 }
