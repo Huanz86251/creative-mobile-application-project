@@ -1,5 +1,6 @@
 {
   "expo": {
+    "assetBundlePatterns": ["assets/**/*"],
     "name": "assignment-4",
     "slug": "assignment-4",
     "version": "1.0.0",
