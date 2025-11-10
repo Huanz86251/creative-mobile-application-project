@@ -1,12 +1,11 @@
 
-import { View, Text, FlatList, TextInput, ActivityIndicator, Alert, Button } from "react-native";
+import { View, Text, FlatList, TextInput, ActivityIndicator, Alert } from "react-native";
 import { useEffect, useState } from "react";
-import { Link, useRouter } from "expo-router";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { TrackListItem } from "../../components/TrackListItem";   
 import { Track } from "../../features/tracks/tracksSlice";       
 
 export default function DiscoverScreen() {
-  const router = useRouter();
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
   const [query, setQuery] = useState("");
@@ -46,43 +45,58 @@ export default function DiscoverScreen() {
   };
 
   return (
-    <View style={{ flex: 1, padding: 16 }}>
-      <Text style={{ fontSize: 24, fontWeight: "bold", marginBottom: 8 }}>All Songs</Text>
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={{ flex: 1, padding: 16 }}>
+        <View style={{ marginBottom: 16 }}>
+          <Text style={{ fontSize: 32, fontWeight: "800", color: "#0c1d37" }}>Search</Text>
+          <Text style={{ fontSize: 16, color: "#4b5d75" }}>Find tracks and artists you love</Text>
+        </View>
 
-      <View style={{ flexDirection: "row", marginBottom: 12, alignItems: "center", gap: 8 }}>
-        <TextInput
-          style={{ flex: 1, borderColor: "#ccc", borderWidth: 1, borderRadius: 8, padding: 8, fontSize: 16 }}
-          placeholder="Search artist or song..."
-          value={query}
-          onChangeText={setQuery}
-          onSubmitEditing={handleSearch}
-          returnKeyType="search"
-        />
+        <View
+          style={{
+            flexDirection: "row",
+            marginBottom: 16,
+            alignItems: "center",
+            gap: 8,
+            backgroundColor: "rgba(255,255,255,0.85)",
+            borderRadius: 14,
+            paddingHorizontal: 14,
+            paddingVertical: 6,
+            borderWidth: 1,
+            borderColor: "rgba(12,29,55,0.08)",
+            shadowColor: "#000",
+            shadowOffset: { width: 0, height: 2 },
+            shadowOpacity: 0.08,
+            shadowRadius: 6,
+            elevation: 2,
+          }}
+        >
+          <TextInput
+            style={{ flex: 1, fontSize: 16, paddingVertical: 6 }}
+            placeholder="Search artist or song..."
+            value={query}
+            onChangeText={setQuery}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+          />
+        </View>
+
+        <Text style={{ fontSize: 16, color: "#555", marginBottom: 6 }}>
+          Showing results for: <Text style={{ fontWeight: "bold" }}>{artist}</Text>
+        </Text>
+
+        {loading ? (
+          <ActivityIndicator size="large" style={{ flex: 1, marginTop: 20 }} />
+        ) : (
+          <FlatList
+            data={tracks}
+            keyExtractor={(item) => item.trackId.toString()}
+            renderItem={({ item, index }) => <TrackListItem track={item} index={index} allTracks={tracks} />}
+            ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 20 }}>No songs found.</Text>}
+          />
+        )}
+
       </View>
-
-      <Text style={{ fontSize: 16, color: "#555", marginBottom: 6 }}>
-        Showing results for: <Text style={{ fontWeight: "bold" }}>{artist}</Text>
-      </Text>
-
-      {loading ? (
-        <ActivityIndicator size="large" style={{ flex: 1, marginTop: 20 }} />
-      ) : (
-        <FlatList
-          data={tracks}
-          keyExtractor={(item) => item.trackId.toString()}
-          renderItem={({ item, index }) => <TrackListItem track={item} index={index} allTracks={tracks} />}
-          ListEmptyComponent={<Text style={{ textAlign: "center", marginTop: 20 }}>No songs found.</Text>}
-        />
-      )}
-
-      <Link href="/(tabs)/favorites" style={{ color: "blue", marginTop: 16 }}>
-        Go to Favorites →
-      </Link>
-
-      <View style={{ marginTop: 12, gap: 8 }}>
-        <Button title="Sign in / Account" onPress={() => router.push("/login")} />
-        <Button title="Open Cloud Library" onPress={() => router.push("/(tabs)/library")} />
-      </View>
-    </View>
+    </SafeAreaView>
   );
 }

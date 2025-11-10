@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { View, Text, Button, Alert } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../cloudapi/auth";
@@ -19,62 +20,64 @@ export default function Account() {
   }, []);
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "transparent" }}>
-      <Text style={{ fontSize: 22, fontWeight: "700" }}>Account</Text>
+    <SafeAreaView style={{ flex: 1 }}>
+      <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "transparent" }}>
+        <Text style={{ fontSize: 22, fontWeight: "700" }}>Account</Text>
 
-      <Text style={{ opacity: 0.8 }}>
-        {userEmail ? `Signed in as: ${userEmail}` : "Not signed in"}
-      </Text>
+        <Text style={{ opacity: 0.8 }}>
+          {userEmail ? `Signed in as: ${userEmail}` : "Not signed in"}
+        </Text>
 
-      {userEmail ? (
-        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-          <Button
-            title={busy ? "Setting..." : "Set Background"}
-            onPress={async () => {
-              try {
-                setBusy(true);
-                const newUri = await pickAndSetBackgroundCover(); 
-                console.log("[BG] set ->", newUri);
-                await refresh();                                  
-                Alert.alert("Done", "Background set");
-              } catch (e: any) {
-                Alert.alert("Error", e.message ?? String(e));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          />
-          <Button
-            title="Clear Background"
-            onPress={async () => {
-              try {
-                setBusy(true);
-                await clearBackground();
-                await refresh();   
-                Alert.alert("Cleared", "Background removed");
-              } catch (e: any) {
-                Alert.alert("Error", e.message ?? String(e));
-              } finally {
-                setBusy(false);
-              }
-            }}
-          />
-          <Button
-            title="Sign out"
-            onPress={async () => {
-              await signOut();
-              setUserEmail(null);
-              Alert.alert("Signed out");
-            }}
-          />
-        </View>
-      ) : (
-        <Button title="Sign in / Sign up" onPress={() => router.push("/login")} />
-      )}
+        {userEmail ? (
+          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
+            <Button
+              title={busy ? "Setting..." : "Set Background"}
+              onPress={async () => {
+                try {
+                  setBusy(true);
+                  const newUri = await pickAndSetBackgroundCover(); 
+                  console.log("[BG] set ->", newUri);
+                  await refresh();                                  
+                  Alert.alert("Done", "Background set");
+                } catch (e: any) {
+                  Alert.alert("Error", e.message ?? String(e));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+            <Button
+              title="Clear Background"
+              onPress={async () => {
+                try {
+                  setBusy(true);
+                  await clearBackground();
+                  await refresh();   
+                  Alert.alert("Cleared", "Background removed");
+                } catch (e: any) {
+                  Alert.alert("Error", e.message ?? String(e));
+                } finally {
+                  setBusy(false);
+                }
+              }}
+            />
+            <Button
+              title="Sign out"
+              onPress={async () => {
+                await signOut();
+                setUserEmail(null);
+                Alert.alert("Signed out");
+              }}
+            />
+          </View>
+        ) : (
+          <Button title="Sign in / Account" onPress={() => router.push("/login")} />
+        )}
 
-      <View style={{ height: 8 }} />
-      <Text style={{ fontSize: 16, fontWeight: "600" }}>Settings</Text>
-      <Text style={{ opacity: 0.7 }}>（constructing....）</Text>
-    </View>
+        <View style={{ height: 8 }} />
+        <Text style={{ fontSize: 16, fontWeight: "600" }}>Settings</Text>
+        <Text style={{ opacity: 0.7 }}>（constructing....）</Text>
+      </View>
+    </SafeAreaView>
   );
 }

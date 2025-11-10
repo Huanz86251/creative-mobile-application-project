@@ -40,7 +40,10 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
 
     // PlayerContext expects its own Track shape; passing through as-is is fine
     // for your current PlayerContext; cast to silence TS.
-    await playTrack(track as any);
+    await playTrack(track as any, {
+      queue: Array.isArray(allTracks) ? (allTracks as any[]) : undefined,
+      index,
+    });
   };
 
   return (
