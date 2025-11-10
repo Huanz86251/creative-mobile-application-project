@@ -1,16 +1,17 @@
+// context/PlayerContext.tsx
 import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { Alert, Platform } from "react-native";
 import { Audio, AVPlaybackStatusSuccess } from "expo-av";
 import { Track } from "../features/tracks/tracksSlice";
 
-// 扩展：允许传入 localUri/其它命名的流地址（不改 slice 也能兼容）
-type PlayableTrack = Track & {
+// 允许多种来源字段
+export type PlayableTrack = Track & {
   localUri?: string;
-  preview_url?: string; // 有些接口用下划线
+  preview_url?: string;
   streamUrl?: string;
   stream_url?: string;
   url?: string;
-  artwork_url?: string; // 兼容不同源的封面字段
+  artwork_url?: string;
 };
 
 type PlayerContextType = {
@@ -19,6 +20,10 @@ type PlayerContextType = {
   isPlaying: boolean;
   playTrack: (track: PlayableTrack) => Promise<void>;
   togglePlayPause: () => Promise<void>;
+  // 新增：队列控制
+  setQueue: (tracks: PlayableTrack[], startIndex?: number) => Promise<void>;
+  playNext: () => Promise<void>;
+  playPrev: () => Promise<void>;
 };
 
 export const PlayerContext = createContext<PlayerContextType>({
@@ -27,6 +32,9 @@ export const PlayerContext = createContext<PlayerContextType>({
   isPlaying: false,
   playTrack: async () => {},
   togglePlayPause: async () => {},
+  setQueue: async () => {},
+  playNext: async () => {},
+  playPrev: async () => {},
 });
 
 export const usePlayer = () => useContext(PlayerContext);
@@ -36,7 +44,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [soundObj, setSoundObj] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
-  // 一次性配置播放模式（静音键播放、后台策略等）
+  // 播放队列
+  const [queue, setQueueState] = useState<PlayableTrack[]>([]);
+  const [queueIndex, setQueueIndex] = useState<number>(-1);
+
   useEffect(() => {
     (async () => {
       try {
@@ -52,17 +63,15 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       } catch {}
     })();
 
-    // Provider 卸载时释放资源（通常不发生，但以防万一）
     return () => {
       (async () => {
         try { await soundObj?.stopAsync(); } catch {}
         try { await soundObj?.unloadAsync(); } catch {}
       })();
+      // eslint-disable-next-line react-hooks/exhaustive-deps
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 统一选择音频 URL：本地优先，其次 preview/stream/url
   function pickSourceUri(track: PlayableTrack): string | null {
     return (
       track.localUri ??
@@ -75,63 +84,73 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     );
   }
 
-  // ✅ 播放或切换歌曲
-  const playTrack = async (rawTrack: PlayableTrack) => {
+  async function _stopAndUnload() {
+    if (soundObj) {
+      try { await soundObj.stopAsync(); } catch {}
+      try { await soundObj.unloadAsync(); } catch {}
+    }
+  }
+
+  async function _loadAndPlay(track: PlayableTrack) {
+    const sourceUri = pickSourceUri(track);
+    if (!sourceUri) {
+      console.warn("⚠️ 无效的音频源：缺少 localUri / previewUrl / streamUrl / url");
+      return;
+    }
+    if (Platform.OS === "web" && sourceUri.startsWith("file://")) {
+      Alert.alert("Cannot play", "Web 平台通常无法播放本地文件（file://）。请在 iOS/Android 设备上播放。");
+      return;
+    }
+
+    const { sound } = await Audio.Sound.createAsync(
+      { uri: sourceUri },
+      { shouldPlay: true },
+      (s) => {
+        if ("isLoaded" in s && s.isLoaded) {
+          const status = s as AVPlaybackStatusSuccess;
+          setIsPlaying(status.isPlaying);
+          if (status.didJustFinish) {
+            setIsPlaying(false);
+            // 自动下一首
+            playNext().catch(() => {});
+          }
+        }
+      }
+    );
+    setSoundObj(sound);
+    setCurrentTrack(track);
+    setIsPlaying(true);
+  }
+
+  // 播放或切换到指定歌曲
+  const playTrack = async (track: PlayableTrack) => {
     try {
-      const sourceUri = pickSourceUri(rawTrack);
-
-      if (!sourceUri) {
-        console.warn("⚠️ 无效的音频源：缺少 localUri / previewUrl / streamUrl / url");
-        return;
-      }
-      // Web 端一般无法播放 file://
-      if (Platform.OS === "web" && sourceUri.startsWith("file://")) {
-        Alert.alert("Cannot play", "Web 平台通常无法播放本地文件（file://）。请在 iOS/Android 设备上播放。");
-        return;
-      }
-
-      // 如果点击的是当前歌曲 → 切换播放/暂停
-      if (currentTrack?.trackId === rawTrack.trackId && soundObj) {
+      // 如果点的是当前曲目 -> 切换播放/暂停
+      if (currentTrack?.trackId === track.trackId && soundObj) {
         await togglePlayPause();
         return;
       }
 
-      // 停止并卸载旧实例
-      if (soundObj) {
-        try { await soundObj.stopAsync(); } catch {}
-        try { await soundObj.unloadAsync(); } catch {}
+      // 如果该曲目在队列里，更新 index；否则将队列置为仅此一首
+      const foundIdx = queue.findIndex((t) => String(t.trackId) === String(track.trackId));
+      if (foundIdx !== -1) {
+        setQueueIndex(foundIdx);
+      } else {
+        setQueueState([track]);
+        setQueueIndex(0);
       }
 
-      // 创建并播放新实例
-      const { sound } = await Audio.Sound.createAsync(
-        { uri: sourceUri },
-        { shouldPlay: true },
-        (s) => {
-          if ("isLoaded" in s && s.isLoaded) {
-            const status = s as AVPlaybackStatusSuccess;
-            setIsPlaying(status.isPlaying);
-            if (status.didJustFinish) {
-              setIsPlaying(false);
-              // 可选：这里也可以把 currentTrack 设为空
-            }
-          }
-        }
-      );
-
-      setSoundObj(sound);
-      setCurrentTrack(rawTrack);
-      setIsPlaying(true);
+      await _stopAndUnload();
+      await _loadAndPlay(track);
     } catch (error) {
       console.error("🎧 播放错误:", error);
       setIsPlaying(false);
     }
   };
 
-  // ✅ 暂停 / 恢复
   const togglePlayPause = async () => {
     if (!soundObj) return;
     const status = await soundObj.getStatusAsync();
-
     if ("isLoaded" in status && status.isLoaded) {
       if (status.isPlaying) {
         await soundObj.pauseAsync();
@@ -143,6 +162,41 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // 设置播放队列（可在 TrackListItem 点击时注入）
+  const setQueue = async (tracks: PlayableTrack[], startIndex = 0) => {
+    setQueueState(tracks);
+    setQueueIndex(startIndex);
+    const start = tracks[startIndex];
+    if (start) {
+      await _stopAndUnload();
+      await _loadAndPlay(start);
+    }
+  };
+
+  const playNext = async () => {
+    if (!queue.length) return;
+    const nextIdx = queueIndex + 1;
+    if (nextIdx >= queue.length) {
+      // 到底了，这里选择停住；你也可以循环：const ni = 0;
+      return;
+    }
+    setQueueIndex(nextIdx);
+    await _stopAndUnload();
+    await _loadAndPlay(queue[nextIdx]);
+  };
+
+  const playPrev = async () => {
+    if (!queue.length) return;
+    const prevIdx = queueIndex - 1;
+    if (prevIdx < 0) {
+      // 已在第一首，停住；也可循环：const pi = queue.length - 1;
+      return;
+    }
+    setQueueIndex(prevIdx);
+    await _stopAndUnload();
+    await _loadAndPlay(queue[prevIdx]);
+  };
+
   return (
     <PlayerContext.Provider
       value={{
@@ -151,6 +205,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         isPlaying,
         playTrack,
         togglePlayPause,
+        setQueue,
+        playNext,
+        playPrev,
       }}
     >
       {children}
