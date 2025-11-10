@@ -1,35 +1,84 @@
 
-import { useEffect, useRef, useState, useCallback } from "react";
-import { View, InteractionManager,Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Platform } from "react-native";
+import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { View, InteractionManager, Text, TextInput, FlatList, TouchableOpacity, Alert, Platform, StyleSheet, Modal, Pressable, Image, ScrollView } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
-import { listTracks, searchTracks, listByArtist, listByGenre, type TrackRow } from "../cloudapi/tracks";
+import { listTracks, searchTracks, type TrackRow } from "../cloudapi/tracks";
 import * as FavoritesApi from "../cloudapi/favorites";
 import { getLikesForIds, onFavoriteChanged } from "../cloudapi/favorites";
 import { signOut } from "../cloudapi/auth";
 
 import { downloadTrack, getDownloadedIndex } from "../storage/downloader";
+import { TrackListItem } from "../components/TrackListItem";
+import { usePlayer } from "../context/PlayerContext";
 
 type Row = TrackRow & { likes_count?: number; liked?: boolean; play_url?: string };
+const DETAIL_PLACEHOLDER = "https://via.placeholder.com/300x300.png?text=No+Art";
 const D = (...args: any[]) => console.log("[LIB DEBUG]", ...args);
 
 export default function Library() {
   const router = useRouter();
+  const { playTrack } = usePlayer();
 
   const [q, setQ] = useState("");
-  const [artist, setArtist] = useState("");
-  const [genre, setGenre] = useState("");
-
   const [busy, setBusy] = useState(false);
   const [rows, setRows] = useState<Row[]>([]);
   const [downloaded, setDownloaded] = useState<Record<string, string>>({});
+  const [detailTrack, setDetailTrack] = useState<Row | null>(null);
 
   const rowsRef = useRef<Row[]>([]);
-  useEffect(() => { rowsRef.current = rows; }, [rows]);
+  useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
 
+  const ensurePlayUrl = useCallback(
+    async (item: Row) => {
+      if (item.play_url) return item.play_url;
 
+      const downloadedPath = downloaded[item.id];
+      if (downloadedPath) {
+        setRows((prev) =>
+          prev.map((row) =>
+            row.id === item.id ? { ...row, play_url: downloadedPath } : row
+          )
+        );
+        return downloadedPath;
+      }
+
+      try {
+        const url = await getSignedDownloadUrl(item.object_path, 3600);
+        if (!url) throw new Error("No signed URL returned");
+        setRows((prev) =>
+          prev.map((row) => (row.id === item.id ? { ...row, play_url: url } : row))
+        );
+        return url;
+      } catch (err: any) {
+        console.error("Signed URL failed", err);
+        Alert.alert(
+          "Unavailable",
+          "This track's audio file could not be retrieved from storage."
+        );
+        return null;
+      }
+    },
+    [downloaded]
+  );
+
+  const playbackQueue = useMemo(
+    () => rows.map((row) => toPlaybackTrack(row, () => ensurePlayUrl(row))),
+    [rows, ensurePlayUrl]
+  );
+
+  useEffect(() => {
+    if (!detailTrack) return;
+    const latest = rows.find((r) => r.id === detailTrack.id);
+    if (latest && latest !== detailTrack) {
+      setDetailTrack(latest);
+    }
+  }, [rows, detailTrack?.id]);
 
   useEffect(() => {
     (async () => {
@@ -101,14 +150,17 @@ export default function Library() {
     }
   }
 
-  async function doSearch() {
+  async function doSearch(term?: string) {
     setBusy(true);
     try {
+      const keyword = term ?? q;
+      const trimmed = keyword.trim();
       let data: Row[] = [];
-      if (q.trim()) data = (await searchTracks(q.trim(), 40, 0)) as any;
-      else if (artist.trim()) data = await listByArtist(artist.trim(), 40, 0);
-      else if (genre.trim()) data = await listByGenre(genre.trim(), 40, 0);
-      else data = await listTracks(50, 0);
+      if (trimmed) {
+        data = (await searchTracks(trimmed, 40, 0)) as any;
+      } else {
+        data = await listTracks(50, 0);
+      }
       const withLikes = await mergeLikes(data);
       setRows(withLikes);
     } catch (e: any) {
@@ -117,6 +169,10 @@ export default function Library() {
       setBusy(false);
     }
   }
+
+  const handleSearch = () => {
+    doSearch();
+  };
 
   async function onDownload(t: Row) {
     try {
@@ -132,18 +188,20 @@ export default function Library() {
       setBusy(false);
     }
   }
-  async function onGetPlayUrl(t: Row) {
+  const handlePlay = async (track: Row) => {
     try {
-      setBusy(true);
-      const url = await getSignedDownloadUrl(t.object_path, 86400); // 1day
-      setRows(prev => prev.map(r => (r.id === t.id ? { ...r, play_url: url } : r)));
-        // TODO(player)...................................................................
-      } catch (e: any) {
-      Alert.alert("Play URL error", e.message ?? String(e));
-      } finally {
-      setBusy(false);
-      }
+      const index = rows.findIndex((r) => r.id === track.id);
+      const fallback = toPlaybackTrack(track, () => ensurePlayUrl(track));
+      const playable = index >= 0 ? playbackQueue[index] ?? fallback : fallback;
+      await playTrack(playable as any, {
+        queue: playbackQueue,
+        index: index >= 0 ? index : undefined,
+      });
+      setDetailTrack(null);
+    } catch (e: any) {
+      Alert.alert("Playback error", e.message ?? String(e));
     }
+  };
   async function onLike(t: Row) {
     try {
       const { liked, likes_count } = await FavoritesApi.toggleFavorite(t.id);
@@ -163,76 +221,270 @@ export default function Library() {
  
 
 
-      <View style={{ gap: 6 }}>
-        <TextInput
-          placeholder="Search (title/artist/tags/lyrics)"
-          value={q}
-          onChangeText={setQ}
-          style={{ borderWidth: 1, borderRadius: 8, padding: 8 }}
-        />
-        <View style={{ flexDirection: "row", gap: 8 }}>
-          <TextInput placeholder="Filter by artist" value={artist} onChangeText={setArtist}
-            style={{ flex: 1, borderWidth: 1, borderRadius: 8, padding: 8 }} />
-          <TextInput placeholder="Filter by genre" value={genre} onChangeText={setGenre}
-            style={{ flex: 1, borderWidth: 1, borderRadius: 8, padding: 8 }} />
+      <View style={{ marginBottom: 10 }}>
+        <Text style={{ fontSize: 32, fontWeight: "800", color: "#0c1d37" }}>Library</Text>
+      </View>
+
+      <View style={{ marginBottom: 12 }}>
+        <View
+          style={{
+            flexDirection: "row",
+            alignItems: "center",
+            gap: 10,
+            borderRadius: 18,
+            paddingHorizontal: 12,
+            paddingVertical: 10,
+            backgroundColor: "#fff",
+            shadowColor: "#0c1d37",
+            shadowOpacity: 0.03,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 2,
+          }}
+        >
+          <Ionicons name="search" size={20} color="#4b5d75" />
+          <TextInput
+            style={{ flex: 1, fontSize: 16 }}
+            placeholder="Search artist or song..."
+            placeholderTextColor="#7c8ba1"
+            value={q}
+            onChangeText={setQ}
+            onSubmitEditing={handleSearch}
+            returnKeyType="search"
+          />
+          {!!q && (
+            <TouchableOpacity
+              onPress={() => {
+                setQ("");
+                initialLoad();
+              }}
+              hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+            >
+              <Ionicons name="close-circle" size={20} color="#7c8ba1" />
+            </TouchableOpacity>
+          )}
         </View>
-        <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap" }}>
-          <Button title={busy ? "Working..." : "Search"} onPress={doSearch} disabled={busy} />
-          <Button title="Reset" onPress={() => { setQ(""); setArtist(""); setGenre(""); initialLoad(); }} />
-        </View>
+
       </View>
 
       <FlatList
         data={rows}
         style={{ backgroundColor: "transparent" }}
-        keyExtractor={i => i.id}
-        contentContainerStyle={{ paddingVertical: 8 }}
-        renderItem={({ item }) => {
+        keyExtractor={(i) => i.id}
+        contentContainerStyle={{ paddingBottom: 8 }}
+        renderItem={({ item, index }) => {
           const isDownloaded = !!downloaded[item.id];
+          const trackShape = playbackQueue[index] ?? toPlaybackTrack(item, () => ensurePlayUrl(item));
           return (
-            <View style={{ paddingVertical: 10, borderBottomWidth: 0.5, borderColor: "#ddd" }}>
-              {/* Title → go to details (no Link, only Touchable) */}
-              <TouchableOpacity onPress={() => router.push(`/track/${item.id}`)}>
-                <Text style={{ fontSize: 16, fontWeight: "600", textDecorationLine: "underline" }}>
-                  {item.title}
-                </Text>
-              </TouchableOpacity>
-
-              <Text style={{ opacity: 0.7 }}>{item.artist ?? "Unknown"} · {item.genre ?? "n/a"}</Text>
-              <Text style={{ opacity: 0.6, fontSize: 12 }}>{item.object_path}</Text>
-
-              <View style={{ flexDirection: "row", marginTop: 6 }}>
-                <TouchableOpacity onPress={() => onLike(item)}>
-                  <Text style={{ color: item.liked ? "tomato" : "#333", marginRight: 16 }}>
-                    ★ {item.likes_count ?? 0}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => onGetPlayUrl(item)} disabled={busy}>
-                  <Text style={{ color: "#0a7", marginRight: 16 }}>
-                    {busy ? "Working..." : "Play"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => onDownload(item)} disabled={busy}>
-                  <Text style={{ color: isDownloaded ? "green" : "#007aff", marginRight: 16 }}>
-                    {isDownloaded ? "Downloaded ✓" : "Download"}
-                  </Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => router.push(`/track/${item.id}`)}>
-                  <Text style={{ color: "#4da3ff" }}>Details</Text>
+            <View style={styles.trackCard}>
+              <View style={{ flexDirection: "row", alignItems: "center" }}>
+                <View style={{ flex: 1 }}>
+                  <TrackListItem
+                    track={trackShape}
+                    index={index}
+                    allTracks={playbackQueue}
+                  />
+                </View>
+                <TouchableOpacity onPress={() => setDetailTrack(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                  <Text style={styles.detailsLink}>Details</Text>
                 </TouchableOpacity>
               </View>
-              {item.play_url && (
-              <Text style={{ opacity: 0.7, fontSize: 12, marginTop: 6 }} selectable>
-              {/* TODO(player)................. */}
-              {item.play_url}
-              </Text>
-            )}
             </View>
           );
         }}
+      />
+      <TrackDetailsModal
+        track={detailTrack}
+        visible={!!detailTrack}
+        onClose={() => setDetailTrack(null)}
+        onLike={() => detailTrack && onLike(detailTrack)}
+        onDownload={() => detailTrack && onDownload(detailTrack)}
+        onPlay={() => detailTrack && handlePlay(detailTrack)}
       />
 
 
     </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  trackCard: {
+    paddingVertical: 4,
+  },
+  detailsLink: {
+    color: "#2563eb",
+    fontSize: 12,
+    fontWeight: "600",
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    justifyContent: "center",
+    padding: 20,
+  },
+  modalCard: {
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.95)",
+    padding: 20,
+    shadowColor: "#000",
+    shadowOpacity: 0.2,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 8 },
+    elevation: 6,
+    maxHeight: "85%",
+  },
+  modalCover: {
+    width: "100%",
+    aspectRatio: 1,
+    borderRadius: 20,
+    backgroundColor: "#e2e8f0",
+  },
+  modalTitle: {
+    fontSize: 22,
+    fontWeight: "800",
+    color: "#0c1d37",
+    marginTop: 16,
+  },
+  modalArtist: {
+    color: "#4b5d75",
+    marginTop: 4,
+  },
+  modalMeta: {
+    marginTop: 6,
+    color: "#64748b",
+  },
+  modalActionRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    marginTop: 16,
+  },
+  modalActionButton: {
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderRadius: 16,
+  },
+  chipRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 8,
+    marginTop: 16,
+  },
+  chip: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+    backgroundColor: "rgba(12,29,55,0.08)",
+  },
+  chipText: {
+    fontSize: 12,
+    color: "#0c1d37",
+  },
+});
+
+const toPlaybackTrack = (row: Row, resolver: () => Promise<string | null>) => ({
+  trackId: row.id,
+  trackName: row.title,
+  artistName: row.artist ?? "Unknown",
+  artworkUrl100: row.artwork_url ?? undefined,
+  artworkUrl60: row.artwork_url ?? undefined,
+  previewUrl: row.play_url ?? undefined,
+  objectPath: row.object_path,
+  previewUrlResolver: resolver,
+});
+
+const formatDuration = (seconds: number) => {
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60)
+    .toString()
+    .padStart(2, "0");
+  return `${mins}:${secs}`;
+};
+
+type TrackDetailsModalProps = {
+  track: Row | null;
+  visible: boolean;
+  onClose: () => void;
+  onLike: () => void;
+  onDownload: () => void;
+  onPlay: () => void;
+};
+
+const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay }: TrackDetailsModalProps) => {
+  if (!visible || !track) return null;
+
+  const cover = track.artwork_url ?? DETAIL_PLACEHOLDER;
+  const meta = [track.genre || "Unknown genre", track.language || "Unknown language", track.duration_sec ? `${track.duration_sec}s` : null]
+    .filter(Boolean)
+    .join(" • ");
+
+  return (
+    <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable style={[styles.modalCard, { paddingTop: 44 }]} onPress={(e) => e.stopPropagation()}>
+          <TouchableOpacity
+            onPress={onClose}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            style={{ position: "absolute", top: 14, right: 14, zIndex: 2, backgroundColor: "#0c1d37", borderRadius: 999, padding: 6 }}
+          >
+            <Ionicons name="close" size={16} color="#fff" />
+          </TouchableOpacity>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+            <Image source={{ uri: cover }} style={styles.modalCover} />
+            <Text style={styles.modalTitle}>{track.title}</Text>
+            <Text style={styles.modalArtist}>{track.artist ?? "Unknown artist"}</Text>
+            <Text style={styles.modalMeta}>{meta}</Text>
+
+            <View style={styles.modalActionRow}>
+              <TouchableOpacity
+                style={[styles.modalActionButton, { backgroundColor: track.liked ? "#fee2e2" : "#e0f2fe" }]}
+                onPress={onLike}
+              >
+                <Text style={{ color: track.liked ? "#dc2626" : "#0369a1", fontWeight: "600" }}>
+                  {track.liked ? "★ Favorited" : "☆ Favorite"} ({track.likes_count ?? 0})
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalActionButton, { backgroundColor: "#dcfce7" }]}
+                onPress={onDownload}
+              >
+                <Text style={{ color: "#065f46", fontWeight: "600" }}>Download</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.modalActionButton, { flex: 1, backgroundColor: "#ea4c79" }]}
+                onPress={onPlay}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700", textAlign: "center" }}>Play</Text>
+              </TouchableOpacity>
+            </View>
+
+            {!!(track.tags?.length || track.themes?.length) && (
+              <View>
+                {track.tags?.length ? (
+                  <View style={styles.chipRow}>
+                    {track.tags.map((tag, i) => (
+                      <View key={`tag-${i}`} style={styles.chip}>
+                        <Text style={styles.chipText}>{tag}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+                {track.themes?.length ? (
+                  <View style={styles.chipRow}>
+                    {track.themes.map((theme, i) => (
+                      <View key={`theme-${i}`} style={styles.chip}>
+                        <Text style={styles.chipText}>{theme}</Text>
+                      </View>
+                    ))}
+                  </View>
+                ) : null}
+              </View>
+            )}
+
+          </ScrollView>
+
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+};

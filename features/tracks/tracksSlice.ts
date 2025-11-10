@@ -1,16 +1,18 @@
 import { createSlice, PayloadAction } from "@reduxjs/toolkit";
 
 export interface Track {
-  trackId: number;
+  trackId: number | string;
   artistName: string;
   trackName: string;
   previewUrl?: string;           // 歌曲预览音频
+  previewUrlResolver?: () => Promise<string | null | undefined>;
   artworkUrl30?: string;         // 小封面
   artworkUrl60?: string;         // 中封面
   artworkUrl100?: string;        // 大封面
   collectionName?: string;       // 专辑名
   trackTimeMillis?: number;      // 歌曲时长 (ms)
   favorite?: boolean;            // 是否收藏
+  objectPath?: string;
 }
 
 

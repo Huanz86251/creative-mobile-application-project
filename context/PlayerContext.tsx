@@ -46,6 +46,22 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [queue, setQueue] = useState<Track[]>([]);
   const [queueIndex, setQueueIndex] = useState<number>(-1);
 
+  const resolvePreviewUrl = async (track: Track): Promise<string | null> => {
+    if (track.previewUrl) return track.previewUrl;
+    if (track.previewUrlResolver) {
+      try {
+        const url = await track.previewUrlResolver();
+        if (url) {
+          track.previewUrl = url;
+          return url;
+        }
+      } catch (err) {
+        console.error("Preview resolver failed", err);
+      }
+    }
+    return null;
+  };
+
   const updateFromStatus = (track: Track, status: any) => {
     setPositionMillis(status.positionMillis ?? 0);
     setDurationMillis(
@@ -79,8 +95,9 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
 
   const playTrack = async (track: Track, options?: PlayOptions) => {
     try {
-      if (!track?.previewUrl) {
-        console.warn("⚠️ 无效的 previewUrl:", track.trackName);
+      const previewUrl = await resolvePreviewUrl(track);
+      if (!previewUrl) {
+        console.warn("⚠️ 无法获取 previewUrl:", track.trackName);
         return;
       }
 

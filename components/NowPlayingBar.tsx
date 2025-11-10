@@ -17,6 +17,7 @@ export default function NowPlayingBar() {
     canSkipPrevious,
   } = usePlayer();
   const [showDetails, setShowDetails] = useState(false);
+  const handleCloseDetails = () => setShowDetails(false);
   const insets = useSafeAreaInsets();
   const TAB_BAR_BASE = 60;
   const barBottom = insets.bottom + TAB_BAR_BASE + 8;
@@ -98,22 +99,22 @@ export default function NowPlayingBar() {
           onPress={togglePlayPause}
           activeOpacity={0.85}
           style={{
-            width: 54,
-            height: 54,
-            borderRadius: 27,
+            width: 48,
+            height: 48,
+            borderRadius: 24,
             justifyContent: "center",
             alignItems: "center",
             backgroundColor: "#ea4c79",
             shadowColor: "#ea4c79",
-            shadowOpacity: 0.35,
-            shadowRadius: 10,
-            shadowOffset: { width: 0, height: 5 },
-            elevation: 5,
+            shadowOpacity: 0.3,
+            shadowRadius: 8,
+            shadowOffset: { width: 0, height: 4 },
+            elevation: 4,
           }}
         >
           <Ionicons
             name={isPlaying ? "pause" : "play"}
-            size={30}
+            size={26}
             color="#fff"
             style={{ marginLeft: isPlaying ? 0 : 2 }}
           />
@@ -124,7 +125,7 @@ export default function NowPlayingBar() {
         animationType="slide"
         transparent
         visible={showDetails}
-        onRequestClose={() => setShowDetails(false)}
+        onRequestClose={handleCloseDetails}
       >
         <Pressable
           style={{
@@ -133,7 +134,7 @@ export default function NowPlayingBar() {
             justifyContent: "center",
             paddingHorizontal: 24,
           }}
-          onPress={() => setShowDetails(false)}
+          onPress={handleCloseDetails}
         >
           <Pressable
             style={{
@@ -144,16 +145,38 @@ export default function NowPlayingBar() {
             }}
             onPress={(e) => e.stopPropagation()}
           >
-            <Text
+            <View
               style={{
-                color: "#d1d5db",
-                textAlign: "center",
-                fontWeight: "600",
-                letterSpacing: 0.5,
+                flexDirection: "row",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 12,
               }}
             >
-              Now Playing
-            </Text>
+              <View style={{ width: 32 }} />
+              <Text
+                style={{
+                  color: "#d1d5db",
+                  textAlign: "center",
+                  fontWeight: "600",
+                  letterSpacing: 0.5,
+                  flex: 1,
+                }}
+              >
+                Now Playing
+              </Text>
+              <TouchableOpacity
+                onPress={handleCloseDetails}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                style={{
+                  padding: 6,
+                  borderRadius: 999,
+                  backgroundColor: "rgba(255,255,255,0.12)",
+                }}
+              >
+                <Ionicons name="close" size={18} color="#fff" />
+              </TouchableOpacity>
+            </View>
 
             <Image
               source={{ uri: currentTrack.artworkUrl100 ?? currentTrack.artworkUrl60 }}
@@ -256,20 +279,6 @@ export default function NowPlayingBar() {
               <MiniIcon name="shuffle" disabled small />
               <MiniIcon name="repeat" disabled small />
             </View>
-
-            <TouchableOpacity
-              onPress={() => setShowDetails(false)}
-              style={{
-                marginTop: 8,
-                paddingVertical: 12,
-                borderRadius: 999,
-                backgroundColor: "#2b2f38",
-              }}
-            >
-              <Text style={{ color: "#fff", textAlign: "center", fontWeight: "600" }}>
-                Close
-              </Text>
-            </TouchableOpacity>
           </Pressable>
         </Pressable>
       </Modal>
