@@ -1,7 +1,7 @@
 
 import { supabase } from "../lib/supabase";
 
-export async function getSignedDownloadUrl(objectPath: string, expiresInSec = 600) {
+export async function getSignedDownloadUrl(objectPath: string, expiresInSec = 86400) {
 
   const key = objectPath.replace(/^\/+/, "");
 

@@ -12,7 +12,7 @@ import { signOut } from "../cloudapi/auth";
 
 import { downloadTrack, getDownloadedIndex } from "../storage/downloader";
 
-type Row = TrackRow & { likes_count?: number; liked?: boolean };
+type Row = TrackRow & { likes_count?: number; liked?: boolean; play_url?: string };
 const D = (...args: any[]) => console.log("[LIB DEBUG]", ...args);
 
 export default function Library() {
@@ -132,7 +132,18 @@ export default function Library() {
       setBusy(false);
     }
   }
-
+  async function onGetPlayUrl(t: Row) {
+    try {
+      setBusy(true);
+      const url = await getSignedDownloadUrl(t.object_path, 86400); // 1day
+      setRows(prev => prev.map(r => (r.id === t.id ? { ...r, play_url: url } : r)));
+        // TODO(player)...................................................................
+      } catch (e: any) {
+      Alert.alert("Play URL error", e.message ?? String(e));
+      } finally {
+      setBusy(false);
+      }
+    }
   async function onLike(t: Row) {
     try {
       const { liked, likes_count } = await FavoritesApi.toggleFavorite(t.id);
@@ -196,6 +207,11 @@ export default function Library() {
                     ★ {item.likes_count ?? 0}
                   </Text>
                 </TouchableOpacity>
+                <TouchableOpacity onPress={() => onGetPlayUrl(item)} disabled={busy}>
+                  <Text style={{ color: "#0a7", marginRight: 16 }}>
+                    {busy ? "Working..." : "Play"}
+                  </Text>
+                </TouchableOpacity>
                 <TouchableOpacity onPress={() => onDownload(item)} disabled={busy}>
                   <Text style={{ color: isDownloaded ? "green" : "#007aff", marginRight: 16 }}>
                     {isDownloaded ? "Downloaded ✓" : "Download"}
@@ -205,6 +221,12 @@ export default function Library() {
                   <Text style={{ color: "#4da3ff" }}>Details</Text>
                 </TouchableOpacity>
               </View>
+              {item.play_url && (
+              <Text style={{ opacity: 0.7, fontSize: 12, marginTop: 6 }} selectable>
+              {/* TODO(player)................. */}
+              {item.play_url}
+              </Text>
+            )}
             </View>
           );
         }}

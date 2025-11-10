@@ -28,7 +28,7 @@ export default function TrackDetails() {
   const [downIdx, setDownIdx] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const isDownloaded = !!(id && downIdx[id]);
-
+  const [playUrl, setPlayUrl] = useState<string | null>(null);
   const refreshDownloads = useCallback(async () => {
     try {
       const idx = await getDownloadedIndex();
@@ -110,6 +110,20 @@ export default function TrackDetails() {
       setBusy(false);
     }
   }
+  async function onGetPlayUrl() {
+    if (!t) return;
+      try {
+        setBusy(true);
+        const url = await getSignedDownloadUrl(t.object_path, 86400); // 1 day
+        setPlayUrl(url);
+        // TODO(player):........................................................................
+
+        } catch (e: any) {
+          Alert.alert("Play URL error", e.message ?? String(e));
+        } finally {
+          setBusy(false);
+        }
+    }
 
   if (!id) {
     return (
@@ -163,6 +177,11 @@ export default function TrackDetails() {
                   {busy ? (isDownloaded ? "Removing..." : "Downloading...") : (isDownloaded ? "Delete" : "Download")}
                 </Text>
               </TouchableOpacity>
+              <TouchableOpacity onPress={onGetPlayUrl} disabled={busy} style={{ marginLeft: 16 }}>
+                <Text style={{ color: "#0a7", opacity: busy ? 0.6 : 1 }}>
+                  {busy ? "Working..." : "Get Play URL"}
+                </Text>
+              </TouchableOpacity>
             </View>
           </View>
         </View>
@@ -193,8 +212,14 @@ export default function TrackDetails() {
         <Text style={{ opacity: 0.7, fontSize: 12, marginTop: 12 }} selectable>
           {t?.object_path}
         </Text>
+        {playUrl && (
+          <View style={{ marginTop: 8 }}>
+            <Text style={{ fontSize: 12, opacity: 0.8 }} selectable>
+              {/* TODO(player): ............................*/}
+              {playUrl}
+            </Text>
       </View>
-
+)}</View>
       <FloatingBack />
     </ScrollView>
   );
