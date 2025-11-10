@@ -1,4 +1,4 @@
-// cloudapi/auth.ts
+
 import { supabase } from "../lib/supabase";
 
 const EMAIL_REDIRECT = "https://www.google.com"; 

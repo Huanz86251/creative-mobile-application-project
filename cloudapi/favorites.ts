@@ -1,4 +1,4 @@
-// cloudapi/favorites.ts
+
 import { supabase } from "../lib/supabase";
 
 export type ToggleFavoriteResult = { liked: boolean; likes_count: number };

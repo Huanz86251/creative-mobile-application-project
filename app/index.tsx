@@ -1,9 +1,12 @@
+;(globalThis as any).t?.("index:module");
+
 import { View, Text, FlatList, TextInput, ActivityIndicator, Alert,Button } from "react-native";
 import { useEffect, useState } from "react";
 import { Link, useRouter } from "expo-router";
 import { TrackListItem } from "../components/TrackListItem";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { Track } from "../features/tracks/tracksSlice";
+
 
 export default function HomeScreen() {
   const router = useRouter();

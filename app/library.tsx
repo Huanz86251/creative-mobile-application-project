@@ -1,6 +1,6 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
-import { View, Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Platform } from "react-native";
+import { View, InteractionManager,Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Platform } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
 import FloatingBack from "../components/Floatback";
@@ -44,11 +44,15 @@ export default function Library() {
 
   useFocusEffect(
     useCallback(() => {
-      (async () => {
+      let cancelled = false;
+      InteractionManager.runAfterInteractions(async () => {
+        if (cancelled) return;
+
         await refreshDownloads();
         await refreshLikesForCurrent();
-      })();
-      return () => {};
+        if (!rowsRef.current.length) await initialLoad();
+      });
+      return () => { cancelled = true; };
     }, [])
   );
 

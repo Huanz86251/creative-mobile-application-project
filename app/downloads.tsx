@@ -1,4 +1,4 @@
-// app/downloads.tsx
+
 import { useEffect, useState } from "react";
 import { View, Text, FlatList, Button, TouchableOpacity, Alert } from "react-native";
 import { useRouter } from "expo-router";
@@ -76,7 +76,7 @@ export default function Downloads() {
         <Text style={{ marginTop:16, opacity:0.7 }}>No local files.</Text>
       ) : (
         <FlatList
-          style={{ backgroundColor: "transparent" }} 
+        style={{ backgroundColor: "transparent" }} 
           data={rows}
           keyExtractor={i => i.id}
           renderItem={({ item }) => (
