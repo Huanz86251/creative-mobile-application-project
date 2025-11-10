@@ -1,12 +1,23 @@
-import React, { createContext, useContext, useState, ReactNode } from "react";
-import { Audio } from "expo-av";
+import React, { createContext, useContext, useEffect, useState, ReactNode } from "react";
+import { Alert, Platform } from "react-native";
+import { Audio, AVPlaybackStatusSuccess } from "expo-av";
 import { Track } from "../features/tracks/tracksSlice";
 
+// 扩展：允许传入 localUri/其它命名的流地址（不改 slice 也能兼容）
+type PlayableTrack = Track & {
+  localUri?: string;
+  preview_url?: string; // 有些接口用下划线
+  streamUrl?: string;
+  stream_url?: string;
+  url?: string;
+  artwork_url?: string; // 兼容不同源的封面字段
+};
+
 type PlayerContextType = {
-  currentTrack: Track | null;
+  currentTrack: PlayableTrack | null;
   currentTrackId: string | null;
   isPlaying: boolean;
-  playTrack: (track: Track) => Promise<void>;
+  playTrack: (track: PlayableTrack) => Promise<void>;
   togglePlayPause: () => Promise<void>;
 };
 
@@ -21,45 +32,98 @@ export const PlayerContext = createContext<PlayerContextType>({
 export const usePlayer = () => useContext(PlayerContext);
 
 export const PlayerProvider = ({ children }: { children: ReactNode }) => {
-  const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
+  const [currentTrack, setCurrentTrack] = useState<PlayableTrack | null>(null);
   const [soundObj, setSoundObj] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
 
+  // 一次性配置播放模式（静音键播放、后台策略等）
+  useEffect(() => {
+    (async () => {
+      try {
+        await Audio.setAudioModeAsync({
+          allowsRecordingIOS: false,
+          staysActiveInBackground: false,
+          playsInSilentModeIOS: true,
+          interruptionModeIOS: Audio.INTERRUPTION_MODE_IOS_DO_NOT_MIX,
+          shouldDuckAndroid: true,
+          interruptionModeAndroid: Audio.INTERRUPTION_MODE_ANDROID_DO_NOT_MIX,
+          playThroughEarpieceAndroid: false,
+        });
+      } catch {}
+    })();
+
+    // Provider 卸载时释放资源（通常不发生，但以防万一）
+    return () => {
+      (async () => {
+        try { await soundObj?.stopAsync(); } catch {}
+        try { await soundObj?.unloadAsync(); } catch {}
+      })();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // 统一选择音频 URL：本地优先，其次 preview/stream/url
+  function pickSourceUri(track: PlayableTrack): string | null {
+    return (
+      track.localUri ??
+      track.previewUrl ??
+      (track as any).preview_url ??
+      track.streamUrl ??
+      (track as any).stream_url ??
+      track.url ??
+      null
+    );
+  }
+
   // ✅ 播放或切换歌曲
-  const playTrack = async (track: Track) => {
+  const playTrack = async (rawTrack: PlayableTrack) => {
     try {
-      if (!track?.previewUrl) {
-        console.warn("⚠️ 无效的 previewUrl:", track.trackName);
+      const sourceUri = pickSourceUri(rawTrack);
+
+      if (!sourceUri) {
+        console.warn("⚠️ 无效的音频源：缺少 localUri / previewUrl / streamUrl / url");
+        return;
+      }
+      // Web 端一般无法播放 file://
+      if (Platform.OS === "web" && sourceUri.startsWith("file://")) {
+        Alert.alert("Cannot play", "Web 平台通常无法播放本地文件（file://）。请在 iOS/Android 设备上播放。");
         return;
       }
 
       // 如果点击的是当前歌曲 → 切换播放/暂停
-      if (currentTrack?.trackId === track.trackId && soundObj) {
+      if (currentTrack?.trackId === rawTrack.trackId && soundObj) {
         await togglePlayPause();
         return;
       }
 
-      // 停止之前的歌曲
+      // 停止并卸载旧实例
       if (soundObj) {
-        await soundObj.stopAsync();
-        await soundObj.unloadAsync();
+        try { await soundObj.stopAsync(); } catch {}
+        try { await soundObj.unloadAsync(); } catch {}
       }
 
-      // 创建新音频
-      const { sound } = await Audio.Sound.createAsync({ uri: track.previewUrl });
-      setSoundObj(sound);
-      setCurrentTrack(track);
-      setIsPlaying(true);
-      await sound.playAsync();
-
-      // 播放结束自动重置状态
-      sound.setOnPlaybackStatusUpdate((status) => {
-        if (status.isLoaded && status.didJustFinish) {
-          setIsPlaying(false);
+      // 创建并播放新实例
+      const { sound } = await Audio.Sound.createAsync(
+        { uri: sourceUri },
+        { shouldPlay: true },
+        (s) => {
+          if ("isLoaded" in s && s.isLoaded) {
+            const status = s as AVPlaybackStatusSuccess;
+            setIsPlaying(status.isPlaying);
+            if (status.didJustFinish) {
+              setIsPlaying(false);
+              // 可选：这里也可以把 currentTrack 设为空
+            }
+          }
         }
-      });
+      );
+
+      setSoundObj(sound);
+      setCurrentTrack(rawTrack);
+      setIsPlaying(true);
     } catch (error) {
       console.error("🎧 播放错误:", error);
+      setIsPlaying(false);
     }
   };
 
@@ -68,12 +132,14 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     if (!soundObj) return;
     const status = await soundObj.getStatusAsync();
 
-    if (status.isLoaded && status.isPlaying) {
-      await soundObj.pauseAsync();
-      setIsPlaying(false);
-    } else if (status.isLoaded) {
-      await soundObj.playAsync();
-      setIsPlaying(true);
+    if ("isLoaded" in status && status.isLoaded) {
+      if (status.isPlaying) {
+        await soundObj.pauseAsync();
+        setIsPlaying(false);
+      } else {
+        await soundObj.playAsync();
+        setIsPlaying(true);
+      }
     }
   };
 
