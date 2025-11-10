@@ -221,8 +221,22 @@ export default function Library() {
  
 
 
-      <View style={{ marginBottom: 10 }}>
-        <Text style={{ fontSize: 32, fontWeight: "800", color: "#0c1d37" }}>Library</Text>
+      <View
+        style={{
+          backgroundColor: "rgba(12, 29, 55, 0.74)",
+          borderRadius: 20,
+          padding: 16,
+          marginBottom: 12,
+          shadowColor: "#000",
+          shadowOpacity: 0.15,
+          shadowRadius: 10,
+          shadowOffset: { width: 0, height: 4 },
+        }}
+      >
+        <Text style={{ fontSize: 32, fontWeight: "800", color: "#fff" }}>Library</Text>
+        <Text style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
+          Enjoy the pure ambient vibes
+        </Text>
       </View>
 
       <View style={{ marginBottom: 12 }}>

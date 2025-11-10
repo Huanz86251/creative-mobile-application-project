@@ -39,19 +39,26 @@ export default function BackgroundProvider({ children }: { children: React.React
   const refresh = useCallback(async () => {
     let u: string | null = null;
     try { u = (await getBackgroundLocalUri()) || null; } catch { u = null; }
-  
-    if (u && Platform.OS !== "web" && !u.startsWith("file://") && !u.startsWith("content://")) {
+
+    const isColor = !!u?.startsWith("color:");
+    if (u && !isColor && Platform.OS !== "web" && !u.startsWith("file://") && !u.startsWith("content://")) {
       if (u.startsWith("/")) u = `file://${u}`;
     }
-  
-    if (Platform.OS === "web" && lastWebUrl.current && lastWebUrl.current !== u) {
+
+    if (
+      Platform.OS === "web" &&
+      lastWebUrl.current &&
+      lastWebUrl.current !== u &&
+      lastWebUrl.current.startsWith("blob:")
+    ) {
       try { URL.revokeObjectURL(lastWebUrl.current); } catch {}
     }
-    if (Platform.OS === "web") lastWebUrl.current = u;
-  
+    if (Platform.OS === "web" && u?.startsWith("blob:")) {
+      lastWebUrl.current = u;
+    }
 
     console.log("[BG] refresh ->", u);
-  
+
     setUri(u);
     setUseDefault(!u);
   }, []);
@@ -81,26 +88,33 @@ export default function BackgroundProvider({ children }: { children: React.React
   return (
     <BgCtx.Provider value={value}>
       <View style={{ flex: 1, backgroundColor: "transparent" }}>
-        {useDefault ?  (
-        <Image
-          key="bg-default"
-          source={DEFAULT_BG}
-          resizeMode="cover"
-          style={StyleSheet.absoluteFillObject}
-        />
-      ) : (
-        <Image
-          key={uri || "bg-null"}
-          source={{ uri: uri! }}
-          resizeMode="cover"
-          style={StyleSheet.absoluteFillObject}
-          onError={async () => {
-            setUseDefault(true);
-            await clearBroken();
-          }}
-        />
-      )}
-        {}
+        {uri?.startsWith("color:") ? (
+          <View
+            key={uri}
+            style={[
+              StyleSheet.absoluteFillObject,
+              { backgroundColor: uri.replace("color:", "") || "#000" },
+            ]}
+          />
+        ) : useDefault ? (
+          <Image
+            key="bg-default"
+            source={DEFAULT_BG}
+            resizeMode="cover"
+            style={StyleSheet.absoluteFillObject}
+          />
+        ) : (
+          <Image
+            key={uri || "bg-null"}
+            source={{ uri: uri! }}
+            resizeMode="cover"
+            style={StyleSheet.absoluteFillObject}
+            onError={async () => {
+              setUseDefault(true);
+              await clearBroken();
+            }}
+          />
+        )}
         <View
           pointerEvents="none"
           style={[

@@ -2,6 +2,7 @@
 import { View, Text, FlatList, TextInput, ActivityIndicator, Alert } from "react-native";
 import { useEffect, useState } from "react";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { Ionicons } from "@expo/vector-icons";
 import { TrackListItem } from "../../components/TrackListItem";   
 import { Track } from "../../features/tracks/tracksSlice";       
 
@@ -47,33 +48,43 @@ export default function DiscoverScreen() {
   return (
     <SafeAreaView style={{ flex: 1 }}>
       <View style={{ flex: 1, padding: 16 }}>
-        <View style={{ marginBottom: 16 }}>
-          <Text style={{ fontSize: 32, fontWeight: "800", color: "#0c1d37" }}>Search</Text>
-          <Text style={{ fontSize: 16, color: "#4b5d75" }}>Find tracks and artists you love</Text>
+        <View
+          style={{
+            backgroundColor: "rgba(12, 29, 55, 0.74)",
+            borderRadius: 20,
+            padding: 16,
+            marginBottom: 16,
+            shadowColor: "#000",
+            shadowOpacity: 0.15,
+            shadowRadius: 10,
+            shadowOffset: { width: 0, height: 4 },
+          }}
+        >
+          <Text style={{ fontSize: 32, fontWeight: "800", color: "#fff" }}>Search</Text>
+          <Text style={{ fontSize: 16, color: "rgba(255,255,255,0.8)" }}>
+            Find tracks and artists you love
+          </Text>
         </View>
 
         <View
           style={{
             flexDirection: "row",
-            marginBottom: 16,
             alignItems: "center",
-            gap: 8,
-            backgroundColor: "rgba(255,255,255,0.85)",
-            borderRadius: 14,
-            paddingHorizontal: 14,
-            paddingVertical: 6,
+            gap: 10,
+            backgroundColor: "#fff",
+            borderRadius: 999,
+            paddingHorizontal: 16,
+            paddingVertical: 12,
             borderWidth: 1,
             borderColor: "rgba(12,29,55,0.08)",
-            shadowColor: "#000",
-            shadowOffset: { width: 0, height: 2 },
-            shadowOpacity: 0.08,
-            shadowRadius: 6,
-            elevation: 2,
+            marginBottom: 12,
           }}
         >
+          <Ionicons name="search" size={18} color="#5a6b88" />
           <TextInput
-            style={{ flex: 1, fontSize: 16, paddingVertical: 6 }}
+            style={{ flex: 1, fontSize: 16 }}
             placeholder="Search artist or song..."
+            placeholderTextColor="#7b8ba6"
             value={query}
             onChangeText={setQuery}
             onSubmitEditing={handleSearch}

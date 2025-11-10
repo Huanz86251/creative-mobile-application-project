@@ -10,8 +10,8 @@ import { manipulateAsync, SaveFormat } from "expo-image-manipulator";
 
 import * as FS from "expo-file-system/legacy";
 
-const KEY = "appBackgroundUri";      
-const TARGET_W = 1080;              
+const KEY = "appBackgroundUri";
+const TARGET_W = 1080;
 const JPEG_QUALITY = 0.95;
 
 
@@ -123,4 +123,20 @@ export async function pickAndSetBackgroundCover(): Promise<string> {
   } catch {}
 
   return dest;
+}
+
+export async function setSolidBackgroundColor(color: string): Promise<void> {
+  const prev = await getBackgroundLocalUri();
+
+  if (prev?.startsWith("file://")) {
+    try {
+      await FS.deleteAsync(prev, { idempotent: true });
+    } catch {}
+  } else if (Platform.OS === "web" && prev?.startsWith("blob:")) {
+    try {
+      if (typeof URL !== "undefined") URL.revokeObjectURL(prev);
+    } catch {}
+  }
+
+  await AsyncStorage.setItem(KEY, `color:${color}`);
 }
