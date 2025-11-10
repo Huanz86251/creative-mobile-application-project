@@ -105,14 +105,14 @@ export default function HomeScreen() {
         />
       )}
 
-      <Link href="/favorites" style={{ color: "blue", marginTop: 16 }}>
+      <Link href="/(tabs)/favorites" style={{ color: "blue", marginTop: 16 }}>
         Go to Favorites →
       </Link>
 
       <View style={{ marginTop: 12, gap: 8 }}>
         <Button title="Sign in / Account" onPress={() => router.push("/login")} />
-        <Button title="Open Cloud Library" onPress={() => router.push("/library")} />
-        <Button title="Open Cloud Test" onPress={() => router.push("/cloud-test")} />
+        <Button title="Open Cloud Library" onPress={() => router.push("/(tabs)/library")} />
+
       </View>
     </View>
   );

@@ -19,7 +19,7 @@ export default function Favorites() {
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) { router.replace("/login"); return; }
+      /*if (!session) { router.replace("/login"); return; }*/
       await refresh();
     })();
   }, []);
@@ -100,7 +100,7 @@ export default function Favorites() {
           </View>
         )}
       />
-      <FloatingBack />
+      
     </View>
   );
 }

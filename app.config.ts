@@ -1,6 +1,7 @@
 import 'dotenv/config';
 export default {
     expo: {
+      scheme: "musicapp",
       name: "Creative Mobile App",
       slug: "creative-mobile-app",
       extra: {

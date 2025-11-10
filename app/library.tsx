@@ -3,16 +3,12 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import { View, InteractionManager,Text, TextInput, Button, FlatList, TouchableOpacity, Alert, Platform } from "react-native";
 import { useRouter, useFocusEffect } from "expo-router";
 import { supabase } from "../lib/supabase";
-import FloatingBack from "../components/Floatback";
-
+import { SafeAreaView } from "react-native-safe-area-context";
 import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
 import { listTracks, searchTracks, listByArtist, listByGenre, type TrackRow } from "../cloudapi/tracks";
 import * as FavoritesApi from "../cloudapi/favorites";
 import { getLikesForIds, onFavoriteChanged } from "../cloudapi/favorites";
 import { signOut } from "../cloudapi/auth";
-
-import { useBackground } from "../context/Background";
-import { pickAndSetBackgroundCover, clearBackground } from "../storage/background";
 
 import { downloadTrack, getDownloadedIndex } from "../storage/downloader";
 
@@ -33,12 +29,12 @@ export default function Library() {
   const rowsRef = useRef<Row[]>([]);
   useEffect(() => { rowsRef.current = rows; }, [rows]);
 
-  const bg = useBackground();
+
 
   useEffect(() => {
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      if (!session) router.replace("/login");
+      /*if (!session) router.replace("/login")*/;
     })();
   }, [router]);
 
@@ -148,44 +144,13 @@ export default function Library() {
 
   async function onSignOut() {
     await signOut();
-    router.replace("/login");
+    /*router.replace("/login")*/;
   }
 
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "transparent" }}>
-      <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
-        <Text style={{ fontSize: 22, fontWeight: "700" }}>Library</Text>
-        <Button title="Sign out" onPress={onSignOut} />
-      </View>
+    <SafeAreaView style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "transparent" }}>
+ 
 
-      <View style={{ flexDirection: "row", gap: 8, marginTop: 6, flexWrap: "wrap" }}>
-        <Button title="Open Downloads" onPress={() => router.push("/downloads")} />
-        <Button title="My Favorites" onPress={() => router.push("/favorites")} />
-        <Button
-          title="Set Background"
-          onPress={async () => {
-            try {
-              setBusy(true);
-              await pickAndSetBackgroundCover();
-              await bg.reload();
-              Alert.alert("Done", "Background set");
-            } catch (e: any) {
-              Alert.alert("Error", e.message ?? String(e));
-            } finally {
-              setBusy(false);
-            }
-          }}
-        />
-        <Button
-          title="Clear Background"
-          onPress={async () => {
-            setBusy(true);
-            await clearBackground();
-            await bg.reload();
-            setBusy(false);
-          }}
-        />
-      </View>
 
       <View style={{ gap: 6 }}>
         <TextInput
@@ -245,7 +210,7 @@ export default function Library() {
         }}
       />
 
-      <FloatingBack />
-    </View>
+
+    </SafeAreaView>
   );
 }

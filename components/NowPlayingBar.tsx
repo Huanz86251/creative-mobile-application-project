@@ -1,18 +1,21 @@
 import { View, Text, Image, TouchableOpacity } from "react-native";
 import { usePlayer } from "../context/PlayerContext";
 import { useRouter } from "expo-router";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function NowPlayingBar() {
   const { currentTrack, isPlaying, togglePlayPause } = usePlayer();
   const router = useRouter();
-
+  const insets = useSafeAreaInsets();
+  const TAB_BAR_BASE = 60; 
+  const barBottom = insets.bottom + TAB_BAR_BASE + 8;
   if (!currentTrack) return null;
 
   return (
     <View
       style={{
         position: "absolute",
-        bottom: 0,
+        bottom: barBottom,//incase mass with tab bar
         left: 0,
         right: 0,
         backgroundColor: "#222",

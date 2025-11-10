@@ -29,7 +29,7 @@
       "favicon": "./assets/favicon.png"
     },
     "plugins": ["expo-router"],
-    "scheme": "assignment-4",
+    "scheme": "musicapp",
     "experiments": {
       "typedRoutes": true
     }
