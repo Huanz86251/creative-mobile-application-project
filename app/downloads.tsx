@@ -1,15 +1,6 @@
 
 import { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Image,
-} from "react-native";
+import {  View,  Text,  FlatList,  TouchableOpacity, Alert,Pressable,StyleSheet,Image,} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
@@ -33,11 +24,9 @@ export default function Downloads() {
     const ids = Object.keys(idx);
     if (ids.length === 0) { setRows([]); return; }
 
-
     let metas: TrackRow[] = [];
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) metas = await getTracksByIds(ids);
+      metas = await getTracksByIds(ids);
     } catch { metas = []; }
 
     const metaMap = Object.fromEntries(metas.map(m => [m.id, m]));

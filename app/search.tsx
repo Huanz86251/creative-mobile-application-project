@@ -1,12 +1,5 @@
 import React, { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  ActivityIndicator,
-  StyleSheet,
-  TouchableOpacity,
-} from "react-native";
+import {View,Text,FlatList,ActivityIndicator,StyleSheet,TouchableOpacity,} from "react-native";
 import { useLocalSearchParams, router } from "expo-router";
 import { TrackListItem } from "../components/TrackListItem";
 

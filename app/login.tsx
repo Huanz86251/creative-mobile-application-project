@@ -1,24 +1,24 @@
-
-import { useEffect, useRef, useState, useCallback } from "react";
-import { View, Text, TextInput, Button, Alert } from "react-native";
-import { useRouter, useLocalSearchParams } from "expo-router";
+import React, { useEffect, useRef, useState, useCallback } from "react";
+import { View, Text, TextInput, Button, Alert, TouchableOpacity, BackHandler } from "react-native";
+import { Stack, useRouter, useLocalSearchParams } from "expo-router";
+import { useNavigation } from "@react-navigation/native";
+import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { signIn, signUp, signOut, resendSignUpEmail } from "../cloudapi/auth";
+import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 
 export default function Login() {
   const router = useRouter();
-
-
+  const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
 
-  // signin / signup / verify
   const { mode: modeParam } = useLocalSearchParams<{ mode?: string }>();
   const [mode, setMode] = useState<"signin" | "signup" | "verify">(
     modeParam === "signup" ? "signup" : "signin"
   );
-
 
   const [userId, setUserId] = useState<string | null>(null);
   const [needsVerify, setNeedsVerify] = useState(false);
@@ -26,7 +26,16 @@ export default function Login() {
 
   const mountedRef = useRef(true);
 
- 
+  const goBack = useCallback(() => {
+
+    if (navigation.canGoBack && navigation.canGoBack()) {
+      (navigation as any).goBack();
+    } else {
+      router.replace("/(tabs)/library");
+    }
+  }, [navigation, router]);
+
+
   useEffect(() => {
     mountedRef.current = true;
 
@@ -35,7 +44,7 @@ export default function Login() {
         const { data: { user }, error } = await supabase.auth.getUser();
         if (error) console.log("[LOGIN] getUser error:", error.message);
         if (mountedRef.current) setUserId(user?.id ?? null);
-      } catch (e: any) {
+      } catch {
         if (mountedRef.current) setUserId(null);
       }
     })();
@@ -48,9 +57,7 @@ export default function Login() {
 
     return () => {
       mountedRef.current = false;
-      try {
-        subscription?.unsubscribe?.();
-      } catch {}
+      try { subscription?.unsubscribe?.(); } catch {}
     };
   }, []);
 
@@ -60,11 +67,23 @@ export default function Login() {
   }, [needsVerify]);
 
 
+  useEffect(() => {
+    const sub = BackHandler.addEventListener("hardwareBackPress", () => {
+      goBack();
+      return true;
+    });
+    return () => sub.remove();
+  }, [goBack]);
+
+
+  useEffect(() => {
+    if (userId) goBack();
+  }, [userId, goBack]);
+
   async function onSignIn() {
     try {
       setBusy(true);
       await signIn(email.trim(), password);
-      Alert.alert("Signed in");
 
     } catch (e: any) {
       const msg = (e.message ?? String(e)).toLowerCase();
@@ -84,7 +103,7 @@ export default function Login() {
     try {
       setBusy(true);
       const e = email.trim();
-      const { user, session } = await signUp(e, password);
+      const { session } = await signUp(e, password);
       if (!session) {
         setNeedsVerify(true);
         setPendingEmail(e);
@@ -130,63 +149,78 @@ export default function Login() {
     }
   }
 
-
   const authed = !!userId;
   if (authed) return null;
 
-  // ---- UI ----
   return (
-    <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "transparent" }}>
-      <Text style={{ fontSize: 22, fontWeight: "700" }}>Welcome</Text>
+    <>
+    <SafeAreaView
+      style={{ flex: 1, backgroundColor: "transparent" }}
+      edges={["top", "bottom"]}                    // ← 顶/底都避让
+    >
+      <View style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "transparent" }}>
+        <TouchableOpacity
+          onPress={goBack}
+          style={{ alignSelf: "flex-start", flexDirection: "row", alignItems: "center", gap: 4, paddingVertical: 4 }}
+        >
+          <Ionicons name="chevron-back" size={18} color="#1f2937" />
+          <Text style={{ color: "#1f2937", fontWeight: "600" }}>Back</Text>
+        </TouchableOpacity>
 
-      {mode === "verify" ? (
-        <>
-          <Text style={{ opacity: 0.8 }}>
-            We sent a verification email to{" "}
-            <Text style={{ fontWeight: "600" }}>{pendingEmail || email}</Text>.
-          </Text>
-          <Text style={{ opacity: 0.7 }}>
-            After clicking the link in your email, tap “I've verified”.
-          </Text>
-          <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
-            <Button title="I've verified" onPress={onIHaveVerified} disabled={busy} />
-            <Button title="Resend link" onPress={onResend} disabled={busy} />
-            <Button title="Back to Sign in" onPress={() => setMode("signin")} />
-          </View>
-        </>
-      ) : (
-        <>
-          <TextInput
-            placeholder="Email"
-            autoCapitalize="none"
-            autoCorrect={false}
-            keyboardType="email-address"
-            value={email}
-            onChangeText={setEmail}
-            style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-          />
-          <TextInput
-            placeholder="Password"
-            secureTextEntry
-            value={password}
-            onChangeText={setPassword}
-            style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
-          />
+        <Text style={{ fontSize: 22, fontWeight: "700" }}>Welcome</Text>
 
-          {mode === "signin" ? (
-            <View style={{ gap: 8 }}>
-              <Button title={busy ? "Signing in..." : "Submit"} onPress={onSignIn} disabled={busy} />
-              <Button title="Go to Sign up" onPress={() => setMode("signup")} />
-            </View>
-          ) : (
-            <View style={{ gap: 8 }}>
-              <Button title={busy ? "Signing up..." : "Submit"} onPress={onSignUp} disabled={busy} />
+
+        {mode === "verify" ? (
+          <>
+            <Text style={{ opacity: 0.8 }}>
+              We sent a verification email to{" "}
+              <Text style={{ fontWeight: "600" }}>{pendingEmail || email}</Text>.
+            </Text>
+            <Text style={{ opacity: 0.7 }}>
+              After clicking the link in your email, tap “I've verified”.
+            </Text>
+            <View style={{ flexDirection: "row", gap: 8, flexWrap: "wrap", marginTop: 8 }}>
+              <Button title="I've verified" onPress={onIHaveVerified} disabled={busy} />
+              <Button title="Resend link" onPress={onResend} disabled={busy} />
               <Button title="Back to Sign in" onPress={() => setMode("signin")} />
             </View>
-          )}
+          </>
+        ) : (
+          <>
+            <TextInput
+              placeholder="Email"
+              autoCapitalize="none"
+              autoCorrect={false}
+              keyboardType="email-address"
+              value={email}
+              onChangeText={setEmail}
+              style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
+            />
+            <TextInput
+              placeholder="Password"
+              secureTextEntry
+              value={password}
+              onChangeText={setPassword}
+              style={{ borderWidth: 1, borderRadius: 8, padding: 10 }}
+            />
 
-        </>
-      )}
-    </View>
+            {mode === "signin" ? (
+              <View style={{ gap: 8 }}>
+                <Button title={busy ? "Signing in..." : "Submit"} onPress={onSignIn} disabled={busy} />
+                <Button title="Go to Sign up" onPress={() => setMode("signup")} />
+              </View>
+            ) : (
+              <View style={{ gap: 8 }}>
+                <Button title={busy ? "Signing up..." : "Submit"} onPress={onSignUp} disabled={busy} />
+                <Button title="Back to Sign in" onPress={() => setMode("signin")} />
+              </View>
+            )}
+
+
+          </>
+        )}
+      </View>
+      </SafeAreaView>
+    </>
   );
 }

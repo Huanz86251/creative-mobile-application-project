@@ -1,13 +1,19 @@
-// app/_layout.tsx
+
 import React, { useEffect, useState } from "react";
-import { Stack, ErrorBoundaryProps, useRouter, useSegments } from "expo-router";
-import { ScrollView, Text, Button, View } from "react-native";
+import { Stack, ErrorBoundaryProps, useRouter, useSegments ,Slot} from "expo-router";
+import { ScrollView, Text, Button, View ,LogBox} from "react-native";
+if (__DEV__) {
+  LogBox.ignoreLogs([
+    /Android Push notifications \(remote notifications\) functionality provided by expo-notifications was removed from Expo Go/,
+  ]);
+}
 import { ThemeProvider, DefaultTheme } from "@react-navigation/native";
 
 import { PlayerProvider } from "../context/PlayerContext";
 import BackgroundProvider from "../context/Background";
 import NowPlayingBar from "../components/NowPlayingBar";
 import { supabase } from "../lib/supabase";
+import { attachGlobalNotificationHandlers } from "../lib/notifications";
 
 export const unstable_settings = { initialRouteName: "(tabs)" };
 
@@ -45,14 +51,10 @@ function AuthGate({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (checking) return;
-    const first = segments[0];          
-    const inTabs = first === "(tabs)";
-  
-    if (!loggedIn && inTabs) {
+    const first = segments[0];              
 
-      router.replace("/login");
-    } else if (loggedIn && first === "login") {
 
+    if (loggedIn && first === "login") {
       router.replace("/(tabs)/library");
     }
 
@@ -62,8 +64,12 @@ function AuthGate({ children }: { children: React.ReactNode }) {
   if (checking) return null;
   return <>{children}</>;
 }
+export default function RootLayout() {
 
-export default function Layout() {
+  useEffect(() => {
+    attachGlobalNotificationHandlers();
+  }, []);
+
   return (
     <PlayerProvider>
       <BackgroundProvider>
@@ -72,7 +78,7 @@ export default function Layout() {
             <Stack
               screenOptions={{
                 headerShown: false,
-                contentStyle: { backgroundColor: "transparent" }, // key for native-stack
+                contentStyle: { backgroundColor: "transparent" },
               }}
             />
             <NowPlayingBar />

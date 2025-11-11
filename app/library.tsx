@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
 import { View, InteractionManager, Text, TextInput, FlatList, TouchableOpacity, Alert, Platform, StyleSheet, Modal, Pressable, Image, ScrollView } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
-import { useRouter, useFocusEffect } from "expo-router";
+import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
@@ -10,12 +10,12 @@ import { listTracks, searchTracks, type TrackRow } from "../cloudapi/tracks";
 import * as FavoritesApi from "../cloudapi/favorites";
 import { getLikesForIds, onFavoriteChanged } from "../cloudapi/favorites";
 import { signOut } from "../cloudapi/auth";
-
 import { downloadTrack, getDownloadedIndex } from "../storage/downloader";
 import { TrackListItem } from "../components/TrackListItem";
 import { usePlayer } from "../context/PlayerContext";
+import * as Notifications from "expo-notifications"; 
 
-type Row = TrackRow & { likes_count?: number; liked?: boolean; play_url?: string };
+type Row = TrackRow & { likes_count?: number; liked?: boolean; play_url?: string ;desc_en?: string; bg_en?: string;};
 const DETAIL_PLACEHOLDER = "https://via.placeholder.com/300x300.png?text=No+Art";
 const D = (...args: any[]) => console.log("[LIB DEBUG]", ...args);
 
@@ -28,7 +28,49 @@ export default function Library() {
   const [rows, setRows] = useState<Row[]>([]);
   const [downloaded, setDownloaded] = useState<Record<string, string>>({});
   const [detailTrack, setDetailTrack] = useState<Row | null>(null);
+  const [canLike, setCanLike] = useState(false);
 
+  
+  const { openId, ts } = useLocalSearchParams<{ openId?: string; ts?: string }>();
+
+  useEffect(() => {
+    if (typeof openId !== "string" || !openId) return;
+  
+
+    const hit = rowsRef.current.find(r => r.id === openId);
+    if (hit) {
+      setDetailTrack(hit);
+      return;
+    }
+  
+
+    (async () => {
+      const { data, error } = await supabase
+        .from("tracks")
+        .select("*")
+        .eq("id", openId)
+        .single();
+  
+      if (!error && data) {
+        let row: Row = data as Row;
+  
+
+        try {
+          const map = await getLikesForIds([row.id]);
+          if (map[row.id]) row = { ...row, liked: map[row.id].liked, likes_count: map[row.id].likes_count };
+        } catch {}
+  
+
+        setRows(prev => {
+          const exists = prev.some(x => x.id === row.id);
+          return exists ? prev.map(x => (x.id === row.id ? { ...x, ...row } : x)) : [row, ...prev];
+        });
+  
+        setDetailTrack(row);
+      }
+    })();
+  }, [openId, ts]); 
+ 
   const rowsRef = useRef<Row[]>([]);
   useEffect(() => {
     rowsRef.current = rows;
@@ -74,18 +116,33 @@ export default function Library() {
 
   useEffect(() => {
     if (!detailTrack) return;
-    const latest = rows.find((r) => r.id === detailTrack.id);
-    if (latest && latest !== detailTrack) {
-      setDetailTrack(latest);
-    }
-  }, [rows, detailTrack?.id]);
+    const hasText = !!detailTrack.desc_en ||  !!detailTrack.bg_en;
+
+    if (hasText) return;
+    (async () => {
+      const { data, error } = await supabase
+        .from("tracks")
+
+        .select("id, desc_en, bg_en")
+        .eq("id", detailTrack.id)
+        .single();
+  
+      if (!error && data) {
+        setRows(prev => prev.map(r => r.id === detailTrack.id ? { ...r, ...data } : r));
+        setDetailTrack(prev => (prev ? { ...prev, ...data } : prev));
+      }
+    })();
+  }, [detailTrack?.id]);
 
   useEffect(() => {
+    let sub: any;
     (async () => {
       const { data: { session } } = await supabase.auth.getSession();
-      /*if (!session) router.replace("/login")*/;
+      setCanLike(!!session);
+      sub = supabase.auth.onAuthStateChange((_e, s) => setCanLike(!!s?.user));
     })();
-  }, [router]);
+    return () => { try { sub?.data?.subscription?.unsubscribe?.() } catch {} };
+  }, []);
 
   useFocusEffect(
     useCallback(() => {
@@ -106,9 +163,12 @@ export default function Library() {
     (async () => {
       await refreshDownloads();
       await initialLoad();
-      unsub = onFavoriteChanged(({ track_id, liked, likes_count }) => {
-        setRows(prev => prev.map(r => r.id === track_id ? { ...r, liked, likes_count } : r));
-      });
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        unsub = onFavoriteChanged(({ track_id, liked, likes_count }) => {
+          setRows(prev => prev.map(r => r.id === track_id ? { ...r, liked, likes_count } : r));
+        });
+      }
     })();
     return () => { try { unsub?.(); } catch {} };
   }, []);
@@ -202,7 +262,20 @@ export default function Library() {
       Alert.alert("Playback error", e.message ?? String(e));
     }
   };
+  async function ensureAuthedFor(action: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert("please login first", `if you wish-${action}please login`, [
+        { text: "cancel", style: "cancel" },
+        { text: "login", onPress: () => router.push("/login") },
+      ]);
+      return null;
+    }
+    return user;
+  }
   async function onLike(t: Row) {
+    const user = await ensureAuthedFor("like");
+    if (!user) return;
     try {
       const { liked, likes_count } = await FavoritesApi.toggleFavorite(t.id);
       setRows(prev => prev.map(x => (x.id === t.id ? { ...x, liked, likes_count } : x)));
@@ -314,6 +387,7 @@ export default function Library() {
         onLike={() => detailTrack && onLike(detailTrack)}
         onDownload={() => detailTrack && onDownload(detailTrack)}
         onPlay={() => detailTrack && handlePlay(detailTrack)}
+        canLike={canLike}
       />
 
 
@@ -373,6 +447,19 @@ const styles = StyleSheet.create({
     gap: 10,
     marginTop: 16,
   },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: "800",
+    color: "#0c1d37",
+    textTransform: "uppercase",
+    letterSpacing: 0.6,
+    marginBottom: 6,
+  },
+  sectionBody: {
+    fontSize: 14,
+    color: "#334155",
+    lineHeight: 20,
+  },
   modalActionButton: {
     paddingHorizontal: 14,
     paddingVertical: 10,
@@ -422,9 +509,10 @@ type TrackDetailsModalProps = {
   onLike: () => void;
   onDownload: () => void;
   onPlay: () => void;
+  canLike?: boolean;
 };
 
-const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay }: TrackDetailsModalProps) => {
+const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay, canLike }: TrackDetailsModalProps) => {
   if (!visible || !track) return null;
 
   const cover = track.artwork_url ?? DETAIL_PLACEHOLDER;
@@ -443,6 +531,7 @@ const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay
           >
             <Ionicons name="close" size={16} color="#fff" />
           </TouchableOpacity>
+
           <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
             <Image source={{ uri: cover }} style={styles.modalCover} />
             <Text style={styles.modalTitle}>{track.title}</Text>
@@ -451,19 +540,26 @@ const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay
 
             <View style={styles.modalActionRow}>
               <TouchableOpacity
-                style={[styles.modalActionButton, { backgroundColor: track.liked ? "#fee2e2" : "#e0f2fe" }]}
+                style={[
+                  styles.modalActionButton,
+                  { backgroundColor: track.liked ? "#fee2e2" : (canLike ? "#e0f2fe" : "#e5e7eb") },
+                  !canLike && { opacity: 0.7 }
+                ]}
                 onPress={onLike}
+                disabled={!canLike}
               >
-                <Text style={{ color: track.liked ? "#dc2626" : "#0369a1", fontWeight: "600" }}>
-                  {track.liked ? "★ Favorited" : "☆ Favorite"} ({track.likes_count ?? 0})
+                <Text style={{ color: track.liked ? "#dc2626" : (canLike ? "#0369a1" : "#6b7280"), fontWeight: "600" }}>
+                  {canLike ? (track.liked ? "★ Favorited" : "☆ Favorite") : "after login can subscribe"} ({track.likes_count ?? 0})
                 </Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={[styles.modalActionButton, { backgroundColor: "#dcfce7" }]}
                 onPress={onDownload}
               >
                 <Text style={{ color: "#065f46", fontWeight: "600" }}>Download</Text>
               </TouchableOpacity>
+
               <TouchableOpacity
                 style={[styles.modalActionButton, { flex: 1, backgroundColor: "#ea4c79" }]}
                 onPress={onPlay}
@@ -495,8 +591,23 @@ const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay
               </View>
             )}
 
+            {(track.bg_en || track.desc_en) ? (
+              <View style={{ marginTop: 18, gap: 16 }}>
+                {!!track.bg_en && (
+                  <View>
+                    <Text style={styles.sectionTitle}>Background</Text>
+                    <Text style={styles.sectionBody}>{track.bg_en}</Text>
+                  </View>
+                )}
+                {!!track.desc_en && (
+                  <View>
+                    <Text style={styles.sectionTitle}>Description</Text>
+                    <Text style={styles.sectionBody}>{track.desc_en}</Text>
+                  </View>
+                )}
+              </View>
+            ) : null}
           </ScrollView>
-
         </Pressable>
       </Pressable>
     </Modal>

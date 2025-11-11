@@ -1,15 +1,13 @@
+
 import { useEffect, useState } from "react";
-import { View, Text, Alert, Pressable, StyleSheet, Modal } from "react-native";
+import { View, Text, Alert, Pressable, StyleSheet, Modal, Platform } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../../lib/supabase";
 import { signOut } from "../../cloudapi/auth";
-import {
-  pickAndSetBackgroundCover,
-  clearBackground,
-  setSolidBackgroundColor,
-} from "../../storage/background";
+import { notifyRecommendationNow} from "../../lib/notifications";
+import {pickAndSetBackgroundCover,clearBackground,setSolidBackgroundColor,} from "../../storage/background";
 import { useBackground } from "../../context/Background";
 
 export default function Account() {
@@ -17,6 +15,10 @@ export default function Account() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [showColorPicker, setShowColorPicker] = useState(false);
+
+
+
+
   const { refresh } = useBackground();
   const presetColors = [
     { label: "Sunset", value: "#f87171" },
@@ -48,6 +50,7 @@ export default function Account() {
     }
   };
 
+ 
   const handleUploadBackground = () =>
     runWithBusy(async () => {
       const newUri = await pickAndSetBackgroundCover();
@@ -74,6 +77,14 @@ export default function Account() {
       await signOut();
       setUserEmail(null);
     }, "Signed out");
+
+
+  const handleNotifyNow = () =>
+    runWithBusy(async () => {
+      await notifyRecommendationNow();
+    }, "Notification sent");
+
+ 
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -132,6 +143,27 @@ export default function Account() {
           )}
         </View>
 
+
+        <View style={styles.card}>
+          <Text style={styles.sectionLabel}>Notifications</Text>
+          <Text style={styles.secondaryText}>
+          Send yourself a a notification of personalized music recommendation.
+          </Text>
+
+          <View style={styles.pillsRow}>
+            <ActionChip
+              icon="notifications"
+              label={busy ? "Working..." : "Notify now"}
+              onPress={handleNotifyNow}
+              disabled={busy}
+            />
+
+          </View>
+
+
+        </View>
+
+
         {userEmail ? (
           <Pressable
             style={[styles.fullButton, styles.dangerButton, busy && styles.disabled]}
@@ -142,8 +174,8 @@ export default function Account() {
             <Text style={styles.fullButtonText}>Sign out</Text>
           </Pressable>
         ) : null}
-
       </View>
+
 
       <Modal
         transparent

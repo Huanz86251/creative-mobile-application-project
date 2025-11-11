@@ -1,18 +1,10 @@
 
 import { useEffect, useState } from "react";
-import {
-  View,
-  Text,
-  FlatList,
-  TouchableOpacity,
-  Alert,
-  Pressable,
-  StyleSheet,
-  Image,
-} from "react-native";
+import { View,Text,FlatList,TouchableOpacity,Alert,Pressable,StyleSheet,Image,} from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
+import { useRouter } from "expo-router";
 import type { FavoriteRow } from "../cloudapi/favorites";
 import { listMyFavorites, toggleFavorite } from "../cloudapi/favorites";
 import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
@@ -27,13 +19,40 @@ export default function Favorites() {
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
   const player = usePlayer();
-
+  const router = useRouter();
+  const [isAuthed, setIsAuthed] = useState(false);
+  async function ensureAuthedFor(action: string) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      Alert.alert("Please sign in", `To ${action}, please sign in first.`, [
+        { text: "Cancel", style: "cancel" },
+        { text: "Sign in", onPress: () => router.push("/login") },
+      ]);
+      return null;
+    }
+    return user;
+  }
   useEffect(() => {
+    let sub: any;
     (async () => {
-      await supabase.auth.getSession();
-      await refresh();
+      const { data: { session } } = await supabase.auth.getSession();
+      setIsAuthed(!!session);
+      if (session) await refresh();
+  
+      sub = supabase.auth.onAuthStateChange((_e, s) => {
+        const authed = !!s?.user;
+        setIsAuthed(authed);
+        if (authed) {
+          refresh();
+        } else {
+          setRows([]); 
+        }
+      });
     })();
+  
+    return () => { try { sub?.data?.subscription?.unsubscribe?.(); } catch {} };
   }, []);
+  
 
   async function refresh() {
     const [fav, idx] = await Promise.all([listMyFavorites(), getDownloadedIndex()]);
@@ -47,6 +66,8 @@ export default function Favorites() {
   }
 
   async function onToggle(track_id: string) {
+    const user = await ensureAuthedFor("remove from favorites");
+    if (!user) return;
     try {
       const { liked } = await toggleFavorite(track_id);
       if (!liked) setRows((prev) => prev.filter((x) => x.track_id !== track_id));
@@ -69,6 +90,9 @@ export default function Favorites() {
   }
 
   async function downloadAllMissing() {
+    const user = await ensureAuthedFor("batch download");
+    if (!user) return;
+  
     try {
       setBusy(true);
       const missing = rows.filter((x) => !x.downloaded);
@@ -140,13 +164,26 @@ export default function Favorites() {
         </View>
 
         <View style={styles.actionsRow}>
+          {!isAuthed && (
+            <ActionChip
+              icon="log-in-outline"
+              label="Login to view favorites"
+              disabled={busy}
+              onPress={() => router.push("/login")}
+            />
+          )}
           <ActionChip
             icon="cloud-download-outline"
             label={busy ? "Working..." : "Download missing"}
-            disabled={busy}
+            disabled={busy || !isAuthed}
             onPress={downloadAllMissing}
           />
-          <ActionChip icon="refresh" label="Refresh" disabled={busy} onPress={refresh} />
+          <ActionChip
+            icon="refresh"
+            label="Refresh"
+            disabled={busy || !isAuthed}
+            onPress={refresh}
+          />
         </View>
 
         <FlatList
@@ -215,15 +252,34 @@ export default function Favorites() {
             );
           }}
           ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <View style={styles.emptyIconWrap}>
-                <Ionicons name="heart-outline" size={32} color="#ffc6d9" />
+            isAuthed ? (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="heart-outline" size={32} color="#ffc6d9" />
+                </View>
+                <Text style={styles.emptyTitle}>No favorites yet</Text>
+                <Text style={styles.emptyBody}>
+                  Mark tracks with the heart icon in Library to collect them here.
+                </Text>
               </View>
-              <Text style={styles.emptyTitle}>No favorites yet</Text>
-              <Text style={styles.emptyBody}>
-                Mark tracks with the heart icon in Discover or Library to collect them here.
-              </Text>
-            </View>
+            ) : (
+              <View style={styles.emptyState}>
+                <View style={styles.emptyIconWrap}>
+                  <Ionicons name="log-in-outline" size={32} color="#cfe4ff" />
+                </View>
+                <Text style={styles.emptyTitle}>Log in to view your collection</Text>
+                <Text style={styles.emptyBody}>
+                You can listen to and download public tracks without logging in, but you need to log in to access your favorites list.
+                </Text>
+                <View style={{ marginTop: 8 }}>
+                  <ActionChip
+                    icon="log-in-outline"
+                    label="Sign in"
+                    onPress={() => router.push("/login")}
+                  />
+                </View>
+              </View>
+            )
           }
         />
       </View>

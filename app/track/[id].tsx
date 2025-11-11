@@ -1,4 +1,4 @@
-// app/track/[id].tsx
+
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { View, Text, Image, TouchableOpacity, ActivityIndicator, Alert, ScrollView } from "react-native";
 import { useLocalSearchParams } from "expo-router";
