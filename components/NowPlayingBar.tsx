@@ -1,17 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import {
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-  Pressable,
-  Alert,
-  Dimensions,
-  Animated,
-  Easing,
-  PanResponder,
-  Platform,
-  Share as RNShare,
+  View, Text, Image, TouchableOpacity, Pressable, Dimensions,
+  Animated, Easing, PanResponder, Platform, Share as RNShare,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { usePlayer } from "../context/PlayerContext";
@@ -26,11 +16,7 @@ async function shareWithFallback(previewUrl: string, filenameBase: string) {
       return;
     }
     let Sharing: any = null;
-    try {
-      Sharing = await import("expo-sharing");
-    } catch {
-      Sharing = null;
-    }
+    try { Sharing = await import("expo-sharing"); } catch { Sharing = null; }
     if (!Sharing || !(await Sharing.isAvailableAsync?.())) {
       await RNShare.share({ message: previewUrl });
       return;
@@ -57,22 +43,68 @@ type PlayerSlice = ReturnType<typeof usePlayer>;
 
 function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: PlayerSlice }) {
   const {
-    currentTrack,
-    isPlaying,
-    togglePlayPause,
-    positionMillis,
-    durationMillis,
-    playNext,
-    playPrevious,
-    canSkipNext,
-    canSkipPrevious,
+    currentTrack, isPlaying, togglePlayPause, positionMillis, durationMillis,
+    playNext, playPrevious, canSkipNext, canSkipPrevious,
+    playbackMode, cyclePlaybackMode,
   } = player;
 
   const [sharing, setSharing] = useState(false);
+  const progressAnimMini = useRef(new Animated.Value(0)).current;
+  const progressAnimSheet = useRef(new Animated.Value(0)).current;
+  useEffect(() => {
+    const pct = (durationMillis ? positionMillis / durationMillis : 0) * 100;
+    const cfg = { duration: 160, easing: Easing.linear as any, useNativeDriver: false };
+    Animated.timing(progressAnimMini, { toValue: pct, ...cfg }).start();
+    Animated.timing(progressAnimSheet, { toValue: pct, ...cfg }).start();
+  }, [positionMillis, durationMillis]);
 
-  const progress = durationMillis ? Math.min(positionMillis / durationMillis, 1) : 0;
-  const elapsedLabel = formatMillis(positionMillis);
-  const durationLabel = formatMillis(durationMillis || currentTrack!.trackTimeMillis || 0);
+  const H = Math.min(560, Math.round(Dimensions.get("window").height * 0.80));
+  const SHEET_HIDDEN_Y = H + 40;
+  const sheetY = useRef(new Animated.Value(SHEET_HIDDEN_Y)).current;
+  const [isOpen, setIsOpen] = useState(false);
+
+  const scrimOpacity = sheetY.interpolate({ inputRange: [0, SHEET_HIDDEN_Y], outputRange: [1, 0], extrapolate: "clamp" });
+  const scrimPointerEvents = isOpen ? "auto" : ("none" as const);
+
+  const openSheet = () => {
+    setIsOpen(true);
+    Animated.spring(sheetY, { toValue: 0, useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8 }).start();
+  };
+  const closeSheet = () => {
+    Animated.spring(sheetY, { toValue: SHEET_HIDDEN_Y, useNativeDriver: true, damping: 18, stiffness: 180, mass: 0.8 })
+      .start(() => setIsOpen(false));
+  };
+
+  const startYRef = useRef(SHEET_HIDDEN_Y);
+  useEffect(() => {
+    const sub = sheetY.addListener(({ value }) => { startYRef.current = value; });
+    return () => sheetY.removeListener(sub);
+  }, [sheetY]);
+
+  const drag = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > Math.abs(g.dx) && Math.abs(g.dy) > 6,
+      onPanResponderGrant: () => {
+        // @ts-ignore
+        startYRef.current = sheetY.__getValue?.() ?? (sheetY as any)._value ?? SHEET_HIDDEN_Y;
+      },
+      onPanResponderMove: (_e, g) => sheetY.setValue(clamp(0, SHEET_HIDDEN_Y, startYRef.current + g.dy)),
+      onPanResponderRelease: (_e, g) => {
+        const current = sheetY.__getValue?.() ?? (sheetY as any)._value ?? SHEET_HIDDEN_Y;
+        const shouldClose = g.vy > 0.6 || current > H * 0.25;
+        shouldClose ? closeSheet() : openSheet();
+      },
+      onPanResponderTerminate: () => {
+        const current = sheetY.__getValue?.() ?? (sheetY as any)._value ?? SHEET_HIDDEN_Y;
+        current > H * 0.25 ? closeSheet() : openSheet();
+      },
+    })
+  ).current;
+
+  const miniBtnPress = useRef(new Animated.Value(0)).current;
+  const miniBtnScale = miniBtnPress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] });
+  const bigBtnPress = useRef(new Animated.Value(0)).current;
+  const bigBtnScale = bigBtnPress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.92] });
 
   const shareCurrent = async () => {
     if (!currentTrack?.previewUrl) return;
@@ -81,88 +113,13 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
     setSharing(false);
   };
 
-  const miniBtnPress = useRef(new Animated.Value(0)).current;
-  const miniBtnScale = miniBtnPress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.94] });
-
-  const progressAnimMini = useRef(new Animated.Value(0)).current;
-  const progressAnimSheet = useRef(new Animated.Value(0)).current;
-  useEffect(() => {
-    const pct = (durationMillis ? positionMillis / durationMillis : 0) * 100;
-    Animated.timing(progressAnimMini, { toValue: pct, duration: 160, easing: Easing.linear, useNativeDriver: false }).start();
-    Animated.timing(progressAnimSheet, { toValue: pct, duration: 160, easing: Easing.linear, useNativeDriver: false }).start();
-  }, [positionMillis, durationMillis]);
-
-  const H = Math.min(560, Math.round(Dimensions.get("window").height * 0.78));
-  const SHEET_HIDDEN_Y = H + 40;
-  const sheetY = useRef(new Animated.Value(SHEET_HIDDEN_Y)).current;
-  const [isOpen, setIsOpen] = useState(false);
-
-  const scrimOpacity = sheetY.interpolate({
-    inputRange: [0, SHEET_HIDDEN_Y],
-    outputRange: [1, 0],
-    extrapolate: "clamp",
-  });
-  const scrimPointerEvents = isOpen ? "auto" : ("none" as const);
-
-  const openSheet = () => {
-    setIsOpen(true);
-    Animated.spring(sheetY, {
-      toValue: 0,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.8,
-    }).start();
-  };
-  const closeSheet = () => {
-    Animated.spring(sheetY, {
-      toValue: SHEET_HIDDEN_Y,
-      useNativeDriver: true,
-      damping: 18,
-      stiffness: 180,
-      mass: 0.8,
-    }).start(() => setIsOpen(false));
-  };
-
-  const startYRef = useRef(SHEET_HIDDEN_Y);
-  useEffect(() => {
-    const sub = sheetY.addListener(({ value }) => {
-      startYRef.current = value;
-    });
-    return () => sheetY.removeListener(sub);
-  }, [sheetY]);
-
-  const drag = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > Math.abs(g.dx) && Math.abs(g.dy) > 6,
-      onPanResponderGrant: () => {
-        startYRef.current =
-          (sheetY as any).__getValue ? (sheetY as any).__getValue() : (sheetY as any)._value ?? SHEET_HIDDEN_Y;
-      },
-      onPanResponderMove: (_e, g) => {
-        const next = clamp(0, SHEET_HIDDEN_Y, startYRef.current + g.dy);
-        sheetY.setValue(next);
-      },
-      onPanResponderRelease: (_e, g) => {
-        const current =
-          (sheetY as any).__getValue ? (sheetY as any).__getValue() : (sheetY as any)._value ?? SHEET_HIDDEN_Y;
-        const threshold = H * 0.25;
-        const shouldClose = g.vy > 0.6 || current > threshold;
-        shouldClose ? closeSheet() : openSheet();
-      },
-      onPanResponderTerminate: () => {
-        const current =
-          (sheetY as any).__getValue ? (sheetY as any).__getValue() : (sheetY as any)._value ?? SHEET_HIDDEN_Y;
-        current > H * 0.25 ? closeSheet() : openSheet();
-      },
-    })
-  ).current;
-
-  const bigBtnPress = useRef(new Animated.Value(0)).current;
-  const bigBtnScale = bigBtnPress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.92] });
+  const progress = durationMillis ? Math.min(positionMillis / durationMillis, 1) : 0;
+  const elapsedLabel = formatMillis(positionMillis);
+  const durationLabel = formatMillis(durationMillis || currentTrack!.trackTimeMillis || 0);
 
   return (
     <>
+      {/* Mini bar */}
       <View style={{ position: "absolute", bottom: barBottom, left: 0, right: 0, paddingHorizontal: 20 }}>
         <View
           style={{
@@ -195,15 +152,7 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
               <Text style={{ color: "#8ea2c5" }} numberOfLines={1}>
                 {currentTrack!.artistName}
               </Text>
-              <View
-                style={{
-                  height: 4,
-                  backgroundColor: "rgba(255,255,255,0.12)",
-                  borderRadius: 999,
-                  marginTop: 6,
-                  overflow: "hidden",
-                }}
-              >
+              <View style={{ height: 4, backgroundColor: "rgba(255,255,255,0.12)", borderRadius: 999, marginTop: 6, overflow: "hidden" }}>
                 <Animated.View
                   style={{
                     height: 4,
@@ -230,11 +179,6 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
                 justifyContent: "center",
                 alignItems: "center",
                 backgroundColor: "#ea4c79",
-                shadowColor: "#ea4c79",
-                shadowOpacity: 0.3,
-                shadowRadius: 8,
-                shadowOffset: { width: 0, height: 4 },
-                elevation: 4,
               }}
             >
               <Ionicons name={isPlaying ? "pause" : "play"} size={26} color="#fff" style={{ marginLeft: isPlaying ? 0 : 2 }} />
@@ -243,12 +187,14 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
         </View>
       </View>
 
+      {/* Scrim */}
       <Animated.View pointerEvents={scrimPointerEvents} style={absFill}>
         <Pressable onPress={closeSheet} style={absFill}>
           <Animated.View style={[absFill, { backgroundColor: "rgba(0,0,0,0.55)", opacity: scrimOpacity }]} />
         </Pressable>
       </Animated.View>
 
+      {/* Sheet */}
       <Animated.View
         {...drag.panHandlers}
         style={{
@@ -278,28 +224,19 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
 
           <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between" }}>
             <Text style={{ color: "#d1d5db", fontWeight: "600", letterSpacing: 0.5 }}>Now Playing</Text>
-            <View style={{ flexDirection: "row", gap: 8 }}>
-              <TouchableOpacity
-                onPress={shareCurrent}
-                disabled={sharing || !currentTrack?.previewUrl}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{
-                  padding: 6,
-                  borderRadius: 999,
-                  backgroundColor: "rgba(255,255,255,0.12)",
-                  opacity: sharing || !currentTrack?.previewUrl ? 0.6 : 1,
-                }}
-              >
-                <Ionicons name="share-social" size={18} color="#fff" />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={closeSheet}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                style={{ padding: 6, borderRadius: 999, backgroundColor: "rgba(255,255,255,0.12)" }}
-              >
-                <Ionicons name="close" size={18} color="#fff" />
-              </TouchableOpacity>
-            </View>
+
+            {/* Right header icons removed so share can live near Next as requested */}
+            <TouchableOpacity
+              onPress={closeSheet}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              style={{
+                padding: 6,
+                borderRadius: 999,
+                backgroundColor: "rgba(255,255,255,0.12)",
+              }}
+            >
+              <Ionicons name="close" size={18} color="#fff" />
+            </TouchableOpacity>
           </View>
 
           <Image
@@ -328,39 +265,52 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
             </View>
           </View>
 
-          <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between", marginTop: 4 }}>
-            <MiniIcon name="play-skip-back" disabled={!canSkipPrevious} onPress={playPrevious} />
-            <TouchableOpacity
-              activeOpacity={0.9}
-              onPressIn={() => Animated.spring(bigBtnPress, { toValue: 1, useNativeDriver: true }).start()}
-              onPressOut={() => Animated.spring(bigBtnPress, { toValue: 0, friction: 5, useNativeDriver: true }).start()}
-              onPress={togglePlayPause}
-            >
-              <Animated.View
-                style={{
-                  transform: [{ scale: bigBtnScale }],
-                  width: 72,
-                  height: 72,
-                  borderRadius: 36,
-                  backgroundColor: "#ea4c79",
-                  justifyContent: "center",
-                  alignItems: "center",
-                  shadowColor: "#ea4c79",
-                  shadowOpacity: 0.4,
-                  shadowRadius: 12,
-                  shadowOffset: { width: 0, height: 4 },
-                  elevation: 6,
-                }}
-              >
-                <Ionicons name={isPlaying ? "pause" : "play"} size={32} color="#fff" />
-              </Animated.View>
-            </TouchableOpacity>
-            <MiniIcon name="play-skip-forward" disabled={!canSkipNext} onPress={playNext} />
-          </View>
+          {/* Controls: left small mode, center transport (prev/big/next), right share */}
+          <View style={{ flexDirection: "row", alignItems: "center", marginTop: 4 }}>
+            {/* Left: mode */}
+            <View style={{ width: 56, alignItems: "flex-start", justifyContent: "center" }}>
+              <ModeButtonSmall mode={playbackMode} onPress={cyclePlaybackMode} />
+            </View>
 
-          <View style={{ flexDirection: "row", justifyContent: "center", gap: 16 }}>
-            <MiniIcon name="shuffle" disabled small />
-            <MiniIcon name="repeat" disabled small />
+            {/* Center: EXACTLY the three transport controls */}
+            <View style={{ flex: 1, alignItems: "center", justifyContent: "center" }}>
+              <View style={{ flexDirection: "row", alignItems: "center", gap: 24 }}>
+                <MiniIcon name="play-skip-back" disabled={!canSkipPrevious} onPress={playPrevious} />
+                <TouchableOpacity
+                  activeOpacity={0.9}
+                  onPressIn={() => Animated.spring(bigBtnPress, { toValue: 1, useNativeDriver: true }).start()}
+                  onPressOut={() => Animated.spring(bigBtnPress, { toValue: 0, friction: 5, useNativeDriver: true }).start()}
+                  onPress={togglePlayPause}
+                >
+                  <Animated.View
+                    style={{
+                      transform: [{ scale: bigBtnScale }],
+                      width: 72,
+                      height: 72,
+                      borderRadius: 36,
+                      backgroundColor: "#ea4c79",
+                      justifyContent: "center",
+                      alignItems: "center",
+                    }}
+                  >
+                    <Ionicons name={isPlaying ? "pause" : "play"} size={32} color="#fff" />
+                  </Animated.View>
+                </TouchableOpacity>
+                <MiniIcon name="play-skip-forward" disabled={!canSkipNext} onPress={playNext} />
+              </View>
+            </View>
+
+            {/* Right: share button (to the right of Next) */}
+            <View style={{ width: 56, alignItems: "flex-end", justifyContent: "center" }}>
+              <TouchableOpacity
+                onPress={shareCurrent}
+                disabled={sharing || !currentTrack?.previewUrl}
+                style={{ padding: 8, opacity: sharing || !currentTrack?.previewUrl ? 0.5 : 1 }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="share-social" size={20} color="#ffffff" />
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Animated.View>
@@ -368,28 +318,58 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
   );
 }
 
-const MiniIcon = ({
+function ModeButtonSmall({
+  mode,
+  onPress,
+}: {
+  mode: "sequential" | "shuffle" | "repeat-one";
+  onPress: () => void;
+}) {
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.85} style={{ padding: 8 }}>
+      {mode === "sequential" && <Ionicons name="reorder-three" size={20} color="#9aa3b2" />}
+      {mode === "shuffle" && <Ionicons name="shuffle" size={20} color="#ea4c79" />}
+      {mode === "repeat-one" && (
+        <View style={{ width: 20, height: 20 }}>
+          <Ionicons name="repeat" size={20} color="#ea4c79" />
+          <View
+            style={{
+              position: "absolute", right: -2, top: -2, width: 12, height: 12,
+              borderRadius: 6, backgroundColor: "#ea4c79", justifyContent: "center", alignItems: "center",
+            }}
+          >
+            <Text style={{ color: "#fff", fontSize: 8, fontWeight: "800" }}>1</Text>
+          </View>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+function MiniIcon({
   name,
   disabled,
-  small,
   onPress,
 }: {
   name: keyof typeof Ionicons.glyphMap;
   disabled?: boolean;
-  small?: boolean;
   onPress?: () => void;
-}) => (
-  <TouchableOpacity disabled={disabled} onPress={onPress} style={{ opacity: disabled ? 0.35 : 1, padding: small ? 8 : 12 }}>
-    <Ionicons name={name} size={small ? 20 : 26} color="#fff" />
-  </TouchableOpacity>
-);
+}) {
+  return (
+    <TouchableOpacity disabled={disabled} onPress={onPress} style={{ opacity: disabled ? 0.35 : 1, padding: 12 }}>
+      <Ionicons name={name} size={26} color="#fff" />
+    </TouchableOpacity>
+  );
+}
 
-const formatMillis = (ms?: number | null) => {
+function formatMillis(ms?: number | null) {
   if (!ms || Number.isNaN(ms)) return "0:00";
-  const minutes = Math.floor(ms / 60000);
-  const seconds = Math.floor((ms % 60000) / 1000).toString().padStart(2, "0");
-  return `${minutes}:${seconds}`;
-};
+  const m = Math.floor(ms / 60000);
+  const s = Math.floor((ms % 60000) / 1000)
+    .toString()
+    .padStart(2, "0");
+  return `${m}:${s}`;
+}
 
 const absFill = {
   position: "absolute" as const,
