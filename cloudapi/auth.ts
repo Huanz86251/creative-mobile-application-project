@@ -1,7 +1,11 @@
 
 import { supabase } from "../lib/supabase";
 
-const EMAIL_REDIRECT = "https://www.google.com"; 
+const RAW_VERIFY_URL = "https://huanz86251.github.io/verify-landing/";
+const EMAIL_REDIRECT = RAW_VERIFY_URL.endsWith("/")
+  ? RAW_VERIFY_URL
+  : RAW_VERIFY_URL + "/";
+
 export async function signIn(email: string, password: string) {
   const { error } = await supabase.auth.signInWithPassword({ email, password });
   if (error) throw error;
