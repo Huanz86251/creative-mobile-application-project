@@ -1,6 +1,8 @@
 
 import { Platform, Linking } from "react-native";
 
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { notifyDownloadResult } from "../lib/notifications"; 
 import * as FileSystem from "expo-file-system";
 
 
@@ -19,8 +21,8 @@ const FSStatics = {
   downloadAsync: (FileSystem as any).downloadAsync,
 };
 
-import AsyncStorage from "@react-native-async-storage/async-storage";
-
+let Network: any = null;                                        
+try { Network = require("expo-network"); } catch {}
 const SAVED_INDEX_KEY = "downloadedTracksIndex"; // { [trackId]: uri }
 
 function sanitizeFilename(name: string): string {
@@ -59,66 +61,108 @@ async function remember(trackId: string, uri: string) {
   await AsyncStorage.setItem(SAVED_INDEX_KEY, JSON.stringify(idx));
 }
 
-
-export async function downloadTrack(trackId: string, signedUrl: string, filename: string): Promise<string> {
-  const safe = sanitizeFilename(filename);
-
-  if (Platform.OS === "web") {
-    window.open(signedUrl, "_blank");
-    const fake = `browser://${safe}`;
-    await remember(trackId, fake);
-    return fake;
-  }
-
-  const base = getBaseDir();
-  if (!base) {
-
-    try { await Linking.openURL(signedUrl); } catch {}
-    const fake = `external://${safe}`;
-    await remember(trackId, fake);
-    return fake;
-  }
-
-  const dir = base.replace(/\/+$/, "") + "/tracks/";
-  await ensureDirExists(dir);
-
-  const dest = dir + safe;
-
-
-  if (FSN?.File) {
-    const parent = new FSN.Directory(dir);
-    if (!parent.exists) await parent.create();
-
-    const file = new FSN.File(parent, safe);
-    if (file.exists) {
-      await remember(trackId, file.uri);
-      return file.uri;
+async function isOffline(): Promise<boolean> {
+  try {
+    if (Network?.getNetworkStateAsync) {
+      const st = await Network.getNetworkStateAsync();
+      if (st && (st.isConnected === false || st.isInternetReachable === false)) return true;
     }
-    const out = await FSN.File.downloadFileAsync(signedUrl, file);
-    if (!out?.exists) throw new Error("Download failed (new API)");
-    await remember(trackId, out.uri);
-    return out.uri;
+  } catch {}
+  if (typeof navigator !== "undefined" && "onLine" in navigator) return (navigator as any).onLine === false;
+  return false;
+}
+
+type DownloadOpts = {
+  displayName?: string;  
+  notify?: boolean;     
+};
+
+export async function downloadTrack(trackId: string, signedUrl: string, filename: string, opts?: DownloadOpts): Promise<string> {
+  const safe = sanitizeFilename(filename);
+  const notify = opts?.notify !== false;
+  const label = (opts?.displayName || filename).trim() || filename;
+  if (notify) await notifyDownloadResult("started", label);
+  if (await isOffline()) {
+    if (notify) await notifyDownloadResult("failure", `${label} (offline)`);
+    throw new Error("No network connection");
   }
 
+  try {
+    // —— Web：交给浏览器下载
+    if (Platform.OS === "web") {
+      try { window.open(signedUrl, "_blank"); } catch {}
+      const fake = `browser://${safe}`;
+      await remember(trackId, fake);
+      if (notify) await notifyDownloadResult("success", `${label} (opened in browser)`);
+      return fake;
+    }
 
-  if (FSLegacy?.downloadAsync) {
-    const exists = await (FSLegacy as any).getInfoAsync(dest);
-    if (exists.exists) { await remember(trackId, dest); return dest; }
-    const { uri } = await (FSLegacy as any).downloadAsync(signedUrl, dest);
-    const ok = await (FSLegacy as any).getInfoAsync(uri);
-    if (!ok.exists) throw new Error("Download failed (legacy)");
+    // —— 无文件系统（如某些受限运行环境）
+    const base = getBaseDir();
+    if (!base) {
+      try { await Linking.openURL(signedUrl); } catch {}
+      const fake = `external://${safe}`;
+      await remember(trackId, fake);
+      if (notify) await notifyDownloadResult("success", `${label} (opened externally)`);
+      return fake;
+    }
+
+    const dir = base.replace(/\/+$/, "") + "/tracks/";
+    await ensureDirExists(dir);
+    const dest = dir + safe;
+
+    // —— 新 API
+    if (FSN?.File) {
+      const parent = new FSN.Directory(dir);
+      if (!parent.exists) await parent.create();
+
+      const file = new FSN.File(parent, safe);
+      if (file.exists) {
+        await remember(trackId, file.uri);
+        if (notify) await notifyDownloadResult("exists", label);
+        return file.uri;
+      }
+      const out = await FSN.File.downloadFileAsync(signedUrl, file);
+      if (!out?.exists) throw new Error("Download failed (new API)");
+      await remember(trackId, out.uri);
+      if (notify) await notifyDownloadResult("success", label);
+      return out.uri;
+    }
+
+    // —— 旧 API（legacy）
+    if (FSLegacy?.downloadAsync) {
+      const exists = await (FSLegacy as any).getInfoAsync(dest);
+      if (exists.exists) {
+        await remember(trackId, dest);
+        if (notify) await notifyDownloadResult("exists", label);
+        return dest;
+      }
+      const { uri } = await (FSLegacy as any).downloadAsync(signedUrl, dest);
+      const ok = await (FSLegacy as any).getInfoAsync(uri);
+      if (!ok.exists) throw new Error("Download failed (legacy)");
+      await remember(trackId, uri);
+      if (notify) await notifyDownloadResult("success", label);
+      return uri;
+    }
+
+    // —— 静态兜底
+    const exists = await FSStatics.getInfoAsync(dest);
+    if (exists.exists) {
+      await remember(trackId, dest);
+      if (notify) await notifyDownloadResult("exists", label);
+      return dest;
+    }
+    const { uri } = await FSStatics.downloadAsync(signedUrl, dest);
+    const ok = await FSStatics.getInfoAsync(uri);
+    if (!ok.exists) throw new Error("Download failed (static)");
     await remember(trackId, uri);
+    if (notify) await notifyDownloadResult("success", label);
     return uri;
+
+  } catch (e) {
+    if (notify) await notifyDownloadResult("failure", label);
+    throw e;
   }
-
-
-  const exists = await FSStatics.getInfoAsync(dest);
-  if (exists.exists) { await remember(trackId, dest); return dest; }
-  const { uri } = await FSStatics.downloadAsync(signedUrl, dest);
-  const ok = await FSStatics.getInfoAsync(uri);
-  if (!ok.exists) throw new Error("Download failed (static)");
-  await remember(trackId, uri);
-  return uri;
 }
 
 export async function getDownloadedIndex(): Promise<Record<string, string>> {

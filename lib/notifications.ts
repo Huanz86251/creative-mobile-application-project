@@ -6,7 +6,7 @@ import { supabase } from "./supabase";
 
 type RecData = { trackId?: string; title?: string; type?: string; action?: string };
 const LIBRARY_ROUTE = "/(tabs)/library";
-
+const DOWNLOADS_ROUTE = "/(tabs)/downloads"; 
 
 export async function ensureNotifSetup() {
   const cur = await Notifications.getPermissionsAsync();
@@ -19,10 +19,32 @@ export async function ensureNotifSetup() {
       name: "Recommendations",
       importance: Notifications.AndroidImportance.DEFAULT,
     });
+    await Notifications.setNotificationChannelAsync("downloads", {        
+      name: "Downloads",
+      importance: Notifications.AndroidImportance.DEFAULT,
+    });
   }
 }
 
-
+export async function notifyDownloadResult(
+  kind: "success" | "failure" | "exists" | "started",
+  name: string
+) {
+  await ensureNotifSetup();
+  const title =
+    kind === "success" ? "Download complete ✅"
+    : kind === "failure" ? "Download failed ❌"
+    : kind === "exists"  ? "Already downloaded"
+    : "Downloading… ⏬";
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title,
+        body: name,
+        data: { type: "download", action: "open-downloads" } as RecData,
+      },
+      trigger: Platform.OS === "android" ? { channelId: "downloads" } : null,
+    });
+}
 export async function pickOneTrack(): Promise<{ id: string; title: string }> {
   const { data: { user } } = await supabase.auth.getUser();
   if (user) {
@@ -52,7 +74,7 @@ export async function notifyRecommendationNow() {
       body: t.title,
       data: { trackId: t.id, title: t.title, type: "rec-now" } as RecData,
     },
-    trigger: null, 
+    trigger: Platform.OS === "android" ? { channelId: "recommendations" } : null,
   });
 }
 
@@ -93,10 +115,14 @@ export function attachGlobalNotificationHandlers() {
   const openInLibrary = (trackId: string) => {
     router.push({ pathname: LIBRARY_ROUTE, params: { openId: trackId, ts: String(Date.now()) } });
   };
-
+  const openInDownloads = () => router.push(DOWNLOADS_ROUTE);
   const handleResponse = async (resp: Notifications.NotificationResponse) => {
     try {
       const data: any = resp?.notification?.request?.content?.data || {};
+      if (data?.action === "open-downloads" || data?.type === "download") {
+        openInDownloads();
+        return;
+      }
       let targetId: string | undefined = data.trackId;
 
       if (!targetId) {
@@ -118,7 +144,7 @@ export function attachGlobalNotificationHandlers() {
 
 
   (async () => {
-    const last = await Notifications.getLastNotificationResponseAsync();
+    const last = Notifications.getLastNotificationResponse();
     if (last) handleResponse(last);
   })();
 }

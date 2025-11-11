@@ -1,6 +1,18 @@
-
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
-import { View, InteractionManager, Text, TextInput, FlatList, TouchableOpacity, Alert, Platform, StyleSheet, Modal, Pressable, Image, ScrollView } from "react-native";
+import {
+  View,
+  InteractionManager,
+  Text,
+  TextInput,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  StyleSheet,
+  Modal,
+  Pressable,
+  Image,
+  ScrollView,
+} from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useRouter, useFocusEffect, useLocalSearchParams } from "expo-router";
 import { supabase } from "../lib/supabase";
@@ -13,11 +25,16 @@ import { signOut } from "../cloudapi/auth";
 import { downloadTrack, getDownloadedIndex } from "../storage/downloader";
 import { TrackListItem } from "../components/TrackListItem";
 import { usePlayer } from "../context/PlayerContext";
-import * as Notifications from "expo-notifications"; 
 
-type Row = TrackRow & { likes_count?: number; liked?: boolean; play_url?: string ;desc_en?: string; bg_en?: string;};
+type Row = TrackRow & {
+  likes_count?: number;
+  liked?: boolean;
+  play_url?: string;
+  desc_en?: string;
+  bg_en?: string;
+};
+
 const DETAIL_PLACEHOLDER = "https://via.placeholder.com/300x300.png?text=No+Art";
-const D = (...args: any[]) => console.log("[LIB DEBUG]", ...args);
 
 export default function Library() {
   const router = useRouter();
@@ -30,47 +47,32 @@ export default function Library() {
   const [detailTrack, setDetailTrack] = useState<Row | null>(null);
   const [canLike, setCanLike] = useState(false);
 
-  
   const { openId, ts } = useLocalSearchParams<{ openId?: string; ts?: string }>();
 
   useEffect(() => {
     if (typeof openId !== "string" || !openId) return;
-  
-
-    const hit = rowsRef.current.find(r => r.id === openId);
+    const hit = rowsRef.current.find((r) => r.id === openId);
     if (hit) {
       setDetailTrack(hit);
       return;
     }
-  
-
     (async () => {
-      const { data, error } = await supabase
-        .from("tracks")
-        .select("*")
-        .eq("id", openId)
-        .single();
-  
+      const { data, error } = await supabase.from("tracks").select("*").eq("id", openId).single();
       if (!error && data) {
         let row: Row = data as Row;
-  
-
         try {
           const map = await getLikesForIds([row.id]);
           if (map[row.id]) row = { ...row, liked: map[row.id].liked, likes_count: map[row.id].likes_count };
         } catch {}
-  
-
-        setRows(prev => {
-          const exists = prev.some(x => x.id === row.id);
-          return exists ? prev.map(x => (x.id === row.id ? { ...x, ...row } : x)) : [row, ...prev];
+        setRows((prev) => {
+          const exists = prev.some((x) => x.id === row.id);
+          return exists ? prev.map((x) => (x.id === row.id ? { ...x, ...row } : x)) : [row, ...prev];
         });
-  
         setDetailTrack(row);
       }
     })();
-  }, [openId, ts]); 
- 
+  }, [openId, ts]);
+
   const rowsRef = useRef<Row[]>([]);
   useEffect(() => {
     rowsRef.current = rows;
@@ -79,30 +81,19 @@ export default function Library() {
   const ensurePlayUrl = useCallback(
     async (item: Row) => {
       if (item.play_url) return item.play_url;
-
       const downloadedPath = downloaded[item.id];
       if (downloadedPath) {
-        setRows((prev) =>
-          prev.map((row) =>
-            row.id === item.id ? { ...row, play_url: downloadedPath } : row
-          )
-        );
+        setRows((prev) => prev.map((row) => (row.id === item.id ? { ...row, play_url: downloadedPath } : row)));
         return downloadedPath;
       }
-
       try {
         const url = await getSignedDownloadUrl(item.object_path, 3600);
         if (!url) throw new Error("No signed URL returned");
-        setRows((prev) =>
-          prev.map((row) => (row.id === item.id ? { ...row, play_url: url } : row))
-        );
+        setRows((prev) => prev.map((row) => (row.id === item.id ? { ...row, play_url: url } : row)));
         return url;
       } catch (err: any) {
         console.error("Signed URL failed", err);
-        Alert.alert(
-          "Unavailable",
-          "This track's audio file could not be retrieved from storage."
-        );
+        Alert.alert("Unavailable", "This track's audio file could not be retrieved from storage.");
         return null;
       }
     },
@@ -115,25 +106,25 @@ export default function Library() {
   );
 
   useEffect(() => {
-    if (!detailTrack) return;
-    const hasText = !!detailTrack.desc_en ||  !!detailTrack.bg_en;
-
-    if (hasText) return;
+    if (!detailTrack?.id) return;
+    if (detailTrack.desc_en || detailTrack.bg_en) return;
+  
+    let cancelled = false;
     (async () => {
       const { data, error } = await supabase
         .from("tracks")
-
-        .select("id, desc_en, bg_en")
+        .select("desc_en, bg_en")
         .eq("id", detailTrack.id)
         .single();
   
-      if (!error && data) {
-        setRows(prev => prev.map(r => r.id === detailTrack.id ? { ...r, ...data } : r));
-        setDetailTrack(prev => (prev ? { ...prev, ...data } : prev));
+      if (!cancelled && !error && data) {
+        setDetailTrack(prev =>
+          prev && prev.id === detailTrack.id ? { ...prev, ...data } : prev
+        );
       }
     })();
+    return () => { cancelled = true; };
   }, [detailTrack?.id]);
-
   useEffect(() => {
     let sub: any;
     (async () => {
@@ -141,7 +132,11 @@ export default function Library() {
       setCanLike(!!session);
       sub = supabase.auth.onAuthStateChange((_e, s) => setCanLike(!!s?.user));
     })();
-    return () => { try { sub?.data?.subscription?.unsubscribe?.() } catch {} };
+    return () => {
+      try {
+        sub?.data?.subscription?.unsubscribe?.();
+      } catch {}
+    };
   }, []);
 
   useFocusEffect(
@@ -149,12 +144,13 @@ export default function Library() {
       let cancelled = false;
       InteractionManager.runAfterInteractions(async () => {
         if (cancelled) return;
-
         await refreshDownloads();
         await refreshLikesForCurrent();
         if (!rowsRef.current.length) await initialLoad();
       });
-      return () => { cancelled = true; };
+      return () => {
+        cancelled = true;
+      };
     }, [])
   );
 
@@ -166,11 +162,16 @@ export default function Library() {
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
         unsub = onFavoriteChanged(({ track_id, liked, likes_count }) => {
-          setRows(prev => prev.map(r => r.id === track_id ? { ...r, liked, likes_count } : r));
+          setRows((prev) => prev.map((r) => (r.id === track_id ? { ...r, liked, likes_count } : r)));
+          setDetailTrack((prev) => (prev && prev.id === track_id ? { ...prev, liked, likes_count } : prev));
         });
       }
     })();
-    return () => { try { unsub?.(); } catch {} };
+    return () => {
+      try {
+        unsub?.();
+      } catch {}
+    };
   }, []);
 
   async function refreshDownloads() {
@@ -179,21 +180,23 @@ export default function Library() {
   }
 
   async function refreshLikesForCurrent() {
-    const ids = rowsRef.current.map(r => r.id);
+    const ids = rowsRef.current.map((r) => r.id);
     if (!ids.length) return;
     try {
       const map = await getLikesForIds(ids);
-      setRows(prev => prev.map(r => {
-        const m = map[r.id];
-        return m ? { ...r, liked: m.liked, likes_count: m.likes_count } : r;
-      }));
+      setRows((prev) =>
+        prev.map((r) => {
+          const m = map[r.id];
+          return m ? { ...r, liked: m.liked, likes_count: m.likes_count } : r;
+        })
+      );
     } catch {}
   }
 
   async function mergeLikes(base: Row[]): Promise<Row[]> {
     if (!base.length) return base;
-    const map = await getLikesForIds(base.map(r => r.id));
-    return base.map(r => {
+    const map = await getLikesForIds(base.map((r) => r.id));
+    return base.map((r) => {
       const m = map[r.id];
       return m ? { ...r, liked: m.liked, likes_count: m.likes_count } : r;
     });
@@ -239,15 +242,15 @@ export default function Library() {
       setBusy(true);
       const url = await getSignedDownloadUrl(t.object_path, 600);
       if (!url) throw new Error("No signed URL");
-      const local = await downloadTrack(t.id, url, `${t.id}.mp3`);
+      await downloadTrack(t.id, url, `${t.id}.mp3`, { displayName: t.title });
       await refreshDownloads();
-      Alert.alert("Downloaded", Platform.OS === "web" ? "Saved by browser download" : local);
     } catch (e: any) {
-      Alert.alert("Download error", e.message ?? String(e));
+      console.warn("Download error", e?.message ?? String(e));
     } finally {
       setBusy(false);
     }
   }
+
   const handlePlay = async (track: Row) => {
     try {
       const index = rows.findIndex((r) => r.id === track.id);
@@ -262,6 +265,7 @@ export default function Library() {
       Alert.alert("Playback error", e.message ?? String(e));
     }
   };
+
   async function ensureAuthedFor(action: string) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) {
@@ -273,27 +277,52 @@ export default function Library() {
     }
     return user;
   }
+
   async function onLike(t: Row) {
     const user = await ensureAuthedFor("like");
     if (!user) return;
+    const nextLiked = !t.liked;
+    const nextCount = (t.likes_count ?? 0) + (t.liked ? -1 : 1);
+    setRows((prev) => prev.map((x) => (x.id === t.id ? { ...x, liked: nextLiked, likes_count: nextCount } : x)));
+    setDetailTrack((prev) => (prev && prev.id === t.id ? { ...prev, liked: nextLiked, likes_count: nextCount } : prev));
     try {
       const { liked, likes_count } = await FavoritesApi.toggleFavorite(t.id);
-      setRows(prev => prev.map(x => (x.id === t.id ? { ...x, liked, likes_count } : x)));
-    } catch (e: any) {
-      Alert.alert("Favorite error", e.message ?? String(e));
+      setRows((prev) => prev.map((x) => (x.id === t.id ? { ...x, liked, likes_count } : x)));
+      setDetailTrack((prev) => (prev && prev.id === t.id ? { ...prev, liked, likes_count } : prev));
+    } catch (e:any) {
+      setRows((prev) => prev.map((x) => (x.id === t.id ? { ...x, liked: t.liked, likes_count: t.likes_count } : x)));
+      setDetailTrack((prev) => (prev && prev.id === t.id ? { ...prev, liked: t.liked, likes_count: t.likes_count } : prev));
+      console.warn("Favorite error", e?.message ?? String(e));
     }
   }
 
   async function onSignOut() {
     await signOut();
-    /*router.replace("/login")*/;
   }
+
+  const HITSLOP = useMemo(() => ({ top: 10, bottom: 10, left: 10, right: 10 }), []);
+
+  const renderItem = useCallback(
+    ({ item, index }: { item: Row; index: number }) => {
+      const trackShape = playbackQueue[index] ?? toPlaybackTrack(item, () => ensurePlayUrl(item));
+      return (
+        <View style={styles.trackCard}>
+          <View style={styles.row}>
+            <View style={styles.flex1}>
+              <TrackListItem track={trackShape} />
+            </View>
+            <TouchableOpacity onPress={() => setDetailTrack(item)} hitSlop={HITSLOP}>
+              <Text style={styles.detailsLink}>Details</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      );
+    },
+    [playbackQueue, ensurePlayUrl, HITSLOP]
+  );
 
   return (
     <SafeAreaView style={{ flex: 1, padding: 16, gap: 12, backgroundColor: "transparent" }}>
- 
-
-
       <View
         style={{
           backgroundColor: "rgba(12, 29, 55, 0.74)",
@@ -307,9 +336,7 @@ export default function Library() {
         }}
       >
         <Text style={{ fontSize: 32, fontWeight: "800", color: "#fff" }}>Library</Text>
-        <Text style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>
-          Enjoy the pure ambient vibes
-        </Text>
+        <Text style={{ fontSize: 16, color: "rgba(255,255,255,0.8)", marginTop: 4 }}>Enjoy the pure ambient vibes</Text>
       </View>
 
       <View style={{ marginBottom: 12 }}>
@@ -351,7 +378,6 @@ export default function Library() {
             </TouchableOpacity>
           )}
         </View>
-
       </View>
 
       <FlatList
@@ -359,27 +385,14 @@ export default function Library() {
         style={{ backgroundColor: "transparent" }}
         keyExtractor={(i) => i.id}
         contentContainerStyle={{ paddingBottom: 8 }}
-        renderItem={({ item, index }) => {
-          const isDownloaded = !!downloaded[item.id];
-          const trackShape = playbackQueue[index] ?? toPlaybackTrack(item, () => ensurePlayUrl(item));
-          return (
-            <View style={styles.trackCard}>
-              <View style={{ flexDirection: "row", alignItems: "center" }}>
-                <View style={{ flex: 1 }}>
-                  <TrackListItem
-                    track={trackShape}
-                    index={index}
-                    allTracks={playbackQueue}
-                  />
-                </View>
-                <TouchableOpacity onPress={() => setDetailTrack(item)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
-                  <Text style={styles.detailsLink}>Details</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          );
-        }}
+        renderItem={renderItem}
+        windowSize={9}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+        updateCellsBatchingPeriod={16}
+        removeClippedSubviews
       />
+
       <TrackDetailsModal
         track={detailTrack}
         visible={!!detailTrack}
@@ -389,8 +402,6 @@ export default function Library() {
         onPlay={() => detailTrack && handlePlay(detailTrack)}
         canLike={canLike}
       />
-
-
     </SafeAreaView>
   );
 }
@@ -399,6 +410,8 @@ const styles = StyleSheet.create({
   trackCard: {
     paddingVertical: 4,
   },
+  row: { flexDirection: "row", alignItems: "center" },
+  flex1: { flex: 1 },
   detailsLink: {
     color: "#2563eb",
     fontSize: 12,
@@ -494,14 +507,6 @@ const toPlaybackTrack = (row: Row, resolver: () => Promise<string | null>) => ({
   previewUrlResolver: resolver,
 });
 
-const formatDuration = (seconds: number) => {
-  const mins = Math.floor(seconds / 60);
-  const secs = Math.floor(seconds % 60)
-    .toString()
-    .padStart(2, "0");
-  return `${mins}:${secs}`;
-};
-
 type TrackDetailsModalProps = {
   track: Row | null;
   visible: boolean;
@@ -512,7 +517,9 @@ type TrackDetailsModalProps = {
   canLike?: boolean;
 };
 
-const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay, canLike }: TrackDetailsModalProps) => {
+const TrackDetailsModal = ({
+  track, visible, onClose, onLike, onDownload, onPlay, canLike
+}: TrackDetailsModalProps) => {
   if (!visible || !track) return null;
 
   const cover = track.artwork_url ?? DETAIL_PLACEHOLDER;
@@ -522,8 +529,15 @@ const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay
 
   return (
     <Modal transparent animationType="fade" visible={visible} onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={[styles.modalCard, { paddingTop: 44 }]} onPress={(e) => e.stopPropagation()}>
+      <View style={styles.modalBackdrop}>
+        <Pressable style={StyleSheet.absoluteFill} onPress={onClose} />
+
+        <View
+          style={[styles.modalCard, { paddingTop: 44 }]}
+          renderToHardwareTextureAndroid
+
+          shouldRasterizeIOS
+        >
           <TouchableOpacity
             onPress={onClose}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -532,7 +546,12 @@ const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay
             <Ionicons name="close" size={16} color="#fff" />
           </TouchableOpacity>
 
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={{ paddingBottom: 12 }}>
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ paddingBottom: 12 }}
+            scrollEventThrottle={16}
+            overScrollMode="never"
+          >
             <Image source={{ uri: cover }} style={styles.modalCover} />
             <Text style={styles.modalTitle}>{track.title}</Text>
             <Text style={styles.modalArtist}>{track.artist ?? "Unknown artist"}</Text>
@@ -608,8 +627,9 @@ const TrackDetailsModal = ({ track, visible, onClose, onLike, onDownload, onPlay
               </View>
             ) : null}
           </ScrollView>
-        </Pressable>
-      </Pressable>
+        </View>
+      </View>
     </Modal>
   );
 };
+
