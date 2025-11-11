@@ -8,6 +8,7 @@ import {
   Alert,
   Pressable,
   StyleSheet,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
@@ -16,12 +17,16 @@ import type { FavoriteRow } from "../cloudapi/favorites";
 import { listMyFavorites, toggleFavorite } from "../cloudapi/favorites";
 import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
 import { getDownloadedIndex, downloadTrack } from "../storage/downloader";
+import { usePlayer } from "../context/PlayerContext";
 
-type Row = FavoriteRow & { downloaded?: boolean };
+const FALLBACK_COVER = "https://via.placeholder.com/200x200.png?text=Music";
+
+type Row = FavoriteRow & { downloaded?: boolean; downloadedUri?: string };
 
 export default function Favorites() {
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
+  const player = usePlayer();
 
   useEffect(() => {
     (async () => {
@@ -32,7 +37,13 @@ export default function Favorites() {
 
   async function refresh() {
     const [fav, idx] = await Promise.all([listMyFavorites(), getDownloadedIndex()]);
-    setRows(fav.map((f) => ({ ...f, downloaded: !!idx[f.track_id] })));
+    setRows(
+      fav.map((f) => ({
+        ...f,
+        downloaded: !!idx[f.track_id],
+        downloadedUri: idx[f.track_id],
+      }))
+    );
   }
 
   async function onToggle(track_id: string) {
@@ -74,6 +85,41 @@ export default function Favorites() {
     }
   }
 
+  const ensurePlayableUrl = async (item: Row): Promise<string | null> => {
+    if (item.downloadedUri) return item.downloadedUri;
+    if (!item.object_path) return null;
+    try {
+      const signed = await getSignedDownloadUrl(item.object_path, 600);
+      setRows((prev) =>
+        prev.map((row) =>
+          row.track_id === item.track_id ? { ...row, downloadedUri: signed ?? undefined } : row
+        )
+      );
+      return signed ?? null;
+    } catch (err: any) {
+      Alert.alert("Playback error", err?.message ?? String(err));
+      return null;
+    }
+  };
+
+  const handlePlay = async (item: Row) => {
+    try {
+      const url = await ensurePlayableUrl(item);
+      if (!url) return;
+      await player.playTrack({
+        trackId: item.track_id,
+        trackName: item.title ?? "(no title)",
+        artistName: item.artist ?? "Unknown",
+        artworkUrl100: item.artwork_url ?? undefined,
+        artworkUrl60: item.artwork_url ?? undefined,
+        previewUrl: url,
+        objectPath: item.object_path,
+      } as any);
+    } catch (error) {
+      console.error("Failed to start playback from favorites", error);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.safeArea}>
       <View style={styles.container}>
@@ -111,56 +157,63 @@ export default function Favorites() {
             rows.length === 0 && styles.emptyListGrow,
           ]}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={{ flex: 1, gap: 4 }}>
-                <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
-                  <Text style={styles.cardTitle}>{item.title ?? "(no title)"}</Text>
-                  {item.downloaded ? (
-                    <View style={styles.badgeSuccess}>
-                      <Ionicons name="download" size={12} color="#0e1b2d" />
-                      <Text style={styles.badgeSuccessText}>Offline</Text>
-                    </View>
-                  ) : null}
+          renderItem={({ item }) => {
+            const cover = item.artwork_url || FALLBACK_COVER;
+            return (
+              <Pressable style={styles.card} onPress={() => handlePlay(item)}>
+                <Image
+                  source={{ uri: cover }}
+                  style={styles.cardCover}
+                  resizeMode="cover"
+                />
+              <View style={{ flex: 1, gap: 6, justifyContent: "center" }}>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                    <Text style={styles.cardTitle} numberOfLines={1} ellipsizeMode="tail">
+                      {item.title ?? "(no title)"}
+                    </Text>
+                    {item.downloaded ? (
+                      <View style={styles.badgeSuccess}>
+                        <Ionicons name="download" size={12} color="#0e1b2d" />
+                        <Text style={styles.badgeSuccessText}>Offline</Text>
+                      </View>
+                    ) : null}
+                  </View>
+                  <Text style={styles.cardMeta}>{item.artist ?? "Unknown"}</Text>
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity
+                      style={styles.pillRemove}
+                      onPress={() => onToggle(item.track_id)}
+                    >
+                      <Ionicons name="heart-dislike" size={14} color="#ffd6de" />
+                      <Text style={styles.pillRemoveText}>Remove</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      style={[
+                        styles.pillDownload,
+                        (busy || item.downloaded) && styles.pillDisabled,
+                      ]}
+                      onPress={() => onDownloadOne(item)}
+                      disabled={busy || item.downloaded}
+                    >
+                      <Ionicons
+                        name="download"
+                        size={14}
+                        color={item.downloaded ? "#a1aec8" : "#0f1c33"}
+                      />
+                      <Text
+                        style={[
+                          styles.pillDownloadText,
+                          item.downloaded && { color: "#a1aec8" },
+                        ]}
+                      >
+                        {item.downloaded ? "Downloaded" : "Download"}
+                      </Text>
+                    </TouchableOpacity>
+                  </View>
                 </View>
-                <Text style={styles.cardMeta}>{item.artist ?? "Unknown"}</Text>
-                <Text style={styles.cardUri} numberOfLines={1}>
-                  {item.object_path}
-                </Text>
-              </View>
-              <View style={styles.cardActions}>
-                <TouchableOpacity
-                  style={styles.pillRemove}
-                  onPress={() => onToggle(item.track_id)}
-                >
-                  <Ionicons name="heart-dislike" size={14} color="#ffd6de" />
-                  <Text style={styles.pillRemoveText}>Remove</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
-                    styles.pillDownload,
-                    (busy || item.downloaded) && styles.pillDisabled,
-                  ]}
-                  onPress={() => onDownloadOne(item)}
-                  disabled={busy || item.downloaded}
-                >
-                  <Ionicons
-                    name="download"
-                    size={14}
-                    color={item.downloaded ? "#a1aec8" : "#0f1c33"}
-                  />
-                  <Text
-                    style={[
-                      styles.pillDownloadText,
-                      item.downloaded && { color: "#a1aec8" },
-                    ]}
-                  >
-                    {item.downloaded ? "Downloaded" : "Download"}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          )}
+              </Pressable>
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View style={styles.emptyIconWrap}>
@@ -273,6 +326,8 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   card: {
+    flexDirection: "row",
+    alignItems: "center",
     padding: 16,
     borderRadius: 20,
     backgroundColor: "rgba(12,18,32,0.92)",
@@ -282,12 +337,19 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 10 },
-    gap: 12,
+    gap: 14,
+  },
+  cardCover: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   cardTitle: {
     color: "#fff",
     fontSize: 16,
     fontWeight: "700",
+    flexShrink: 1,
   },
   cardMeta: {
     color: "#8aa0c7",
@@ -299,13 +361,16 @@ const styles = StyleSheet.create({
   },
   cardActions: {
     flexDirection: "row",
-    gap: 10,
+    gap: 8,
+    flexWrap: "wrap",
+    marginTop: 4,
+    alignItems: "center",
   },
   pillRemove: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: "rgba(197, 47, 86, 0.5)",
     borderWidth: 1,
@@ -319,8 +384,8 @@ const styles = StyleSheet.create({
   pillDownload: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: "rgba(99, 179, 255, 0.95)",
     borderWidth: 1,

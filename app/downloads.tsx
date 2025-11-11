@@ -8,17 +8,23 @@ import {
   Alert,
   Pressable,
   StyleSheet,
+  Image,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { supabase } from "../lib/supabase";
 import { getDownloadedIndex, removeDownloaded, clearAllDownloads } from "../storage/downloader";
 import { getTracksByIds, type TrackRow } from "../cloudapi/tracks";
-type Row = Omit<Partial<TrackRow>, "id"> & { id: string; uri: string };
+import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
+import { usePlayer } from "../context/PlayerContext";
+const FALLBACK_COVER = "https://via.placeholder.com/200x200.png?text=Download";
+
+type Row = Omit<Partial<TrackRow>, "id"> & { id: string; uri: string; downloadedUri?: string };
 
 export default function Downloads() {
   const [rows, setRows] = useState<Row[]>([]);
   const [busy, setBusy] = useState(false);
+  const player = usePlayer();
 
   useEffect(() => { refresh(); }, []);
 
@@ -38,7 +44,7 @@ export default function Downloads() {
     const mapped: Row[] = ids.map((id) => {
       const meta = metaMap[id] as TrackRow | undefined;
       const { id: _drop, ...rest } = (meta ?? {}) as TrackRow;
-      return { id, uri: idx[id], ...(rest as Omit<TrackRow, "id">) };
+      return { id, uri: idx[id], downloadedUri: idx[id], ...(rest as Omit<TrackRow, "id">) };
     });
     setRows(mapped);
   }
@@ -67,6 +73,41 @@ export default function Downloads() {
         } }
     ]);
   }
+
+  const ensurePlayableUrl = async (item: Row): Promise<string | null> => {
+    if (item.downloadedUri) return item.downloadedUri;
+    if (!item.object_path) return null;
+    try {
+      const signed = await getSignedDownloadUrl(item.object_path, 600);
+      setRows((prev) =>
+        prev.map((row) =>
+          row.id === item.id ? { ...row, downloadedUri: signed ?? undefined } : row
+        )
+      );
+      return signed ?? null;
+    } catch (err: any) {
+      Alert.alert("Playback error", err?.message ?? String(err));
+      return null;
+    }
+  };
+
+  const handlePlay = async (item: Row) => {
+    try {
+      const url = await ensurePlayableUrl(item);
+      if (!url) return;
+      await player.playTrack({
+        trackId: item.id,
+        trackName: item.title ?? "(no title)",
+        artistName: item.artist ?? "Unknown",
+        artworkUrl100: item.artwork_url ?? undefined,
+        artworkUrl60: item.artwork_url ?? undefined,
+        previewUrl: url,
+        objectPath: item.object_path ?? "",
+      } as any);
+    } catch (error) {
+      console.error("Failed to start playback from downloads", error);
+    }
+  };
 
   return (
     <SafeAreaView style={styles.safeArea}>
@@ -106,27 +147,30 @@ export default function Downloads() {
             rows.length === 0 && styles.emptyListGrow,
           ]}
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-          renderItem={({ item }) => (
-            <View style={styles.card}>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={styles.cardTitle}>{item.title ?? "(no title)"}</Text>
-                <Text style={styles.cardMeta}>
-                  {item.artist ?? "Unknown"} · {item.genre ?? "n/a"}
-                </Text>
-                <Text style={styles.cardUri} numberOfLines={1}>
-                  {item.uri}
-                </Text>
-              </View>
-              <TouchableOpacity
-                style={styles.deletePill}
-                onPress={() => onRemove(item.id)}
-                disabled={busy}
-              >
-                <Ionicons name="trash" size={16} color="#ff8ba0" />
-                <Text style={styles.deleteText}>Delete</Text>
-              </TouchableOpacity>
-            </View>
-          )}
+          renderItem={({ item }) => {
+            const cover = item.artwork_url ?? FALLBACK_COVER;
+            return (
+              <Pressable style={styles.card} onPress={() => handlePlay(item)}>
+                <Image source={{ uri: cover }} style={styles.cardCover} resizeMode="cover" />
+                <View style={{ flex: 1, gap: 6, justifyContent: "center" }}>
+                  <Text style={styles.cardTitle}>{item.title ?? "(no title)"}</Text>
+                  <Text style={styles.cardMeta}>
+                    {item.artist ?? "Unknown"}
+                  </Text>
+                  <View style={styles.cardActions}>
+                    <TouchableOpacity
+                      style={styles.deletePill}
+                      onPress={() => onRemove(item.id)}
+                      disabled={busy}
+                    >
+                      <Ionicons name="trash" size={14} color="#ffb0c2" />
+                      <Text style={styles.deleteText}>Delete</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </Pressable>
+            );
+          }}
           ListEmptyComponent={
             <View style={styles.emptyState}>
               <View style={styles.emptyIconWrap}>
@@ -259,10 +303,10 @@ const styles = StyleSheet.create({
   },
   card: {
     flexDirection: "row",
-    alignItems: "flex-start",
+    alignItems: "center",
     padding: 16,
     borderRadius: 20,
-    backgroundColor: "rgba(12,18,32,0.9)",
+    backgroundColor: "rgba(12,18,32,0.92)",
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.06)",
     shadowColor: "#000",
@@ -270,6 +314,12 @@ const styles = StyleSheet.create({
     shadowRadius: 12,
     shadowOffset: { width: 0, height: 10 },
     gap: 14,
+  },
+  cardCover: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
+    backgroundColor: "rgba(255,255,255,0.08)",
   },
   cardTitle: {
     color: "#fff",
@@ -284,10 +334,15 @@ const styles = StyleSheet.create({
     color: "#7182a3",
     fontSize: 12,
   },
+  cardActions: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+  },
   deletePill: {
     flexDirection: "row",
     alignItems: "center",
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 999,
     backgroundColor: "rgba(255,255,255,0.08)",
