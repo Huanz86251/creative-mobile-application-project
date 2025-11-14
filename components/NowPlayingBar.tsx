@@ -61,6 +61,16 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
   const H = Math.min(560, Math.round(Dimensions.get("window").height * 0.80));
   const SHEET_HIDDEN_Y = H + 40;
   const sheetY = useRef(new Animated.Value(SHEET_HIDDEN_Y)).current;
+  const getSheetYValue = () => {
+    const v: any = sheetY;
+    if (typeof v.__getValue === "function") {
+      return v.__getValue();
+    }
+    if (typeof v._value === "number") {
+      return v._value;
+    }
+    return SHEET_HIDDEN_Y;
+  };
   const [isOpen, setIsOpen] = useState(false);
 
   const scrimOpacity = sheetY.interpolate({ inputRange: [0, SHEET_HIDDEN_Y], outputRange: [1, 0], extrapolate: "clamp" });
@@ -80,7 +90,7 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
     const sub = sheetY.addListener(({ value }) => { startYRef.current = value; });
     return () => sheetY.removeListener(sub);
   }, [sheetY]);
-
+  
   const drag = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: (_e, g) => Math.abs(g.dy) > Math.abs(g.dx) && Math.abs(g.dy) > 6,
@@ -90,12 +100,12 @@ function NowPlayingBarInner({ barBottom, player }: { barBottom: number; player: 
       },
       onPanResponderMove: (_e, g) => sheetY.setValue(clamp(0, SHEET_HIDDEN_Y, startYRef.current + g.dy)),
       onPanResponderRelease: (_e, g) => {
-        const current = sheetY.__getValue?.() ?? (sheetY as any)._value ?? SHEET_HIDDEN_Y;
+        const current =getSheetYValue();
         const shouldClose = g.vy > 0.6 || current > H * 0.25;
         shouldClose ? closeSheet() : openSheet();
       },
       onPanResponderTerminate: () => {
-        const current = sheetY.__getValue?.() ?? (sheetY as any)._value ?? SHEET_HIDDEN_Y;
+        const current = getSheetYValue();
         current > H * 0.25 ? closeSheet() : openSheet();
       },
     })
