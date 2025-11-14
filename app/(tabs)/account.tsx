@@ -106,12 +106,12 @@ export default function Account() {
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Profile</Text>
           <Text style={styles.primaryText}>
-            {userEmail ? userEmail : "Not signed in"}
+            {userEmail ? userEmail : "Not logged in"}
           </Text>
           <Text style={styles.secondaryText}>
             {userEmail
               ? "You’re ready to sync downloads and favorites."
-              : "Sign in to keep your library across devices."}
+              : "Log in to keep your library across devices."}
           </Text>
           {userEmail ? (
             <View style={styles.pillsRow}>
@@ -136,7 +136,7 @@ export default function Account() {
             </View>
           ) : (
             <PrimaryButton
-              label="Sign in / Account"
+              label="Log in / Account"
               icon="log-in"
               onPress={() => router.push("/login")}
             />
@@ -147,7 +147,7 @@ export default function Account() {
         <View style={styles.card}>
           <Text style={styles.sectionLabel}>Notifications</Text>
           <Text style={styles.secondaryText}>
-          Send yourself a a notification of personalized music recommendation.
+          Send yourself a notification of personalized music recommendation.
           </Text>
 
           <View style={styles.pillsRow}>

@@ -164,14 +164,6 @@ export default function Favorites() {
         </View>
 
         <View style={styles.actionsRow}>
-          {!isAuthed && (
-            <ActionChip
-              icon="log-in-outline"
-              label="Login to view favorites"
-              disabled={busy}
-              onPress={() => router.push("/login")}
-            />
-          )}
           <ActionChip
             icon="cloud-download-outline"
             label={busy ? "Working..." : "Download missing"}

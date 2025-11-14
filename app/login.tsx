@@ -158,7 +158,7 @@ export default function Login() {
         setPendingEmail(email.trim());
         Alert.alert("Email not verified", "Please verify your email, then tap 'I've verified'.");
       } else {
-        Alert.alert("Sign in failed", e.message ?? String(e));
+        Alert.alert("Log in failed", e.message ?? String(e));
       }
     } finally {
       setBusy(false);
@@ -178,7 +178,7 @@ export default function Login() {
           "We sent you a verification link. After clicking it in your email, tap “I've verified”."
         );
       } else {
-        Alert.alert("Sign up success", "You can sign in now.");
+        Alert.alert("Account created", "You can log in now.");
         setMode("signin");
       }
     } catch (e: any) {
@@ -279,7 +279,13 @@ export default function Login() {
             <Text style={{ color: "#1f2937", fontWeight: "600" }}>Back</Text>
           </TouchableOpacity>
 
-          <Text style={{ fontSize: 22, fontWeight: "700" }}>Welcome</Text>
+          <Text style={{ fontSize: 22, fontWeight: "700" }}>
+            {mode === "signup"
+              ? "Create account"
+              : mode === "forgot" || mode === "reset"
+              ? "Reset password"
+              : "Log in"}
+          </Text>
 
           {mode === "verify" ? (
             <>
@@ -322,7 +328,7 @@ export default function Login() {
               {mode === "signin" && (
                 <View style={{ gap: 8 }}>
                   <Btn
-                    title={busy ? "Signing in..." : "Submit"}
+                    title={busy ? "Logging in..." : "Log in"}
                     onPress={onSignIn}
                     disabled={busy}
                   />
@@ -334,7 +340,7 @@ export default function Login() {
               {mode === "signup" && (
                 <View style={{ gap: 8 }}>
                   <Btn
-                    title={busy ? "Signing up..." : "Submit"}
+                    title={busy ? "Creating account..." : "Sign up"}
                     onPress={onSignUp}
                     disabled={busy}
                   />
