@@ -1,9 +1,16 @@
-import React, { createContext, useContext, useRef, useState, useEffect, ReactNode } from "react";
+import React, {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  useEffect,
+  ReactNode,
+} from "react";
 import { Audio, AVPlaybackStatusSuccess } from "expo-av";
 import { Track } from "../features/tracks/tracksSlice";
 
 type PlayOptions = { queue?: Track[]; index?: number; force?: boolean };
-type PlaybackMode = "sequential" | "shuffle" | "repeat-one";
+export type PlaybackMode = "sequential" | "shuffle" | "repeat-one";
 
 type PlayerContextType = {
   currentTrack: Track | null;
@@ -42,13 +49,24 @@ export const usePlayer = () => useContext(PlayerContext);
 export const PlayerProvider = ({ children }: { children: ReactNode }) => {
   const [currentTrack, setCurrentTrack] = useState<Track | null>(null);
   const soundRef = useRef<Audio.Sound | null>(null);
+
   const [isPlaying, setIsPlaying] = useState(false);
   const [positionMillis, setPositionMillis] = useState(0);
   const [durationMillis, setDurationMillis] = useState(0);
+
   const [queue, setQueue] = useState<Track[]>([]);
   const [queueIndex, setQueueIndex] = useState<number>(-1);
   const [playbackMode, setPlaybackMode] = useState<PlaybackMode>("sequential");
+
+  // --- Refs to avoid stale closures in callbacks ---
   const mountedRef = useRef(true);
+  const queueRef = useRef<Track[]>([]);
+  const indexRef = useRef<number>(-1);
+  const modeRef = useRef<PlaybackMode>("sequential");
+
+  useEffect(() => { queueRef.current = queue; }, [queue]);
+  useEffect(() => { indexRef.current = queueIndex; }, [queueIndex]);
+  useEffect(() => { modeRef.current = playbackMode; }, [playbackMode]);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -59,15 +77,17 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           if (soundRef.current) {
             await soundRef.current.stopAsync().catch(() => {});
             await soundRef.current.unloadAsync().catch(() => {});
-            soundRef.current = null;
           }
         } catch {}
+        soundRef.current = null;
       })();
     };
   }, []);
 
   const cyclePlaybackMode = () =>
-    setPlaybackMode((m) => (m === "sequential" ? "shuffle" : m === "shuffle" ? "repeat-one" : "sequential"));
+    setPlaybackMode((m) =>
+      m === "sequential" ? "shuffle" : m === "shuffle" ? "repeat-one" : "sequential"
+    );
 
   const resolvePreviewUrl = async (track: Track): Promise<string | null> => {
     if (track.previewUrl) return track.previewUrl;
@@ -89,10 +109,42 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     if (typeof dur === "number") setDurationMillis(dur);
   };
 
+  const pickNextIndex = (): number => {
+    const q = queueRef.current;
+    const i = indexRef.current;
+    const mode = modeRef.current;
+    if (!q.length) return -1;
+
+    if (mode === "shuffle") {
+      if (q.length === 1) return i;
+      let r = i;
+      while (r === i) r = Math.floor(Math.random() * q.length);
+      return r;
+    }
+    // sequential
+    return i + 1 < q.length ? i + 1 : 0;
+  };
+
+  const pickPrevIndex = (): number => {
+    const q = queueRef.current;
+    const i = indexRef.current;
+    const mode = modeRef.current;
+    if (!q.length) return -1;
+
+    if (mode === "shuffle") {
+      if (q.length === 1) return i;
+      let r = i;
+      while (r === i) r = Math.floor(Math.random() * q.length);
+      return r;
+    }
+    // sequential
+    return i > 0 ? i - 1 : q.length - 1;
+  };
+
   const handleDidJustFinish = async () => {
     if (!mountedRef.current) return;
 
-    if (playbackMode === "repeat-one") {
+    if (modeRef.current === "repeat-one") {
       const s = soundRef.current;
       if (!s) return;
       try {
@@ -106,16 +158,20 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       return;
     }
 
-    await playNext(); // will pass force: true
+    await playNext(); // uses latest refs internally
   };
 
   const onPlaybackStatusUpdate = (track: Track) => (status: any) => {
     if (!mountedRef.current || !status?.isLoaded) return;
     const s = status as AVPlaybackStatusSuccess;
-    safeSetProgress(s.positionMillis ?? 0, s.durationMillis ?? track.trackTimeMillis ?? durationMillis ?? 0);
+    safeSetProgress(
+      s.positionMillis ?? 0,
+      s.durationMillis ?? track.trackTimeMillis ?? durationMillis ?? 0
+    );
     if (s.didJustFinish) {
       setIsPlaying(false);
-      setTimeout(() => handleDidJustFinish(), 0);
+      // Use latest refs (no stale state)
+      setTimeout(() => { handleDidJustFinish(); }, 0);
     }
   };
 
@@ -129,7 +185,10 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     } catch {}
 
     const uri = track.previewUrl!;
-    const { sound } = await Audio.Sound.createAsync({ uri }, { shouldPlay: true });
+    const { sound } = await Audio.Sound.createAsync(
+      { uri },
+      { shouldPlay: true }
+    );
     soundRef.current = sound;
 
     if (!mountedRef.current) return;
@@ -150,13 +209,13 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // IMPORTANT: only toggle if not forced
+      // 仅当不是 force 时才切换为暂停/继续
       if (!options?.force && currentTrack?.trackId === track.trackId && soundRef.current) {
         await togglePlayPause();
         return;
       }
 
-      let nextQueue = options?.queue ?? queue;
+      let nextQueue = options?.queue ?? queueRef.current;
       if (!nextQueue?.length) nextQueue = [track];
 
       let nextIndex =
@@ -165,8 +224,11 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           : nextQueue.findIndex((t) => t.trackId === track.trackId);
       if (nextIndex < 0) nextIndex = 0;
 
+      // 同步 state & refs
       setQueue(nextQueue);
       setQueueIndex(nextIndex);
+      queueRef.current = nextQueue;
+      indexRef.current = nextIndex;
 
       await startPlaybackFor(track);
     } catch (err) {
@@ -175,44 +237,30 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
-  const pickNextIndex = (): number => {
-    if (!queue.length) return -1;
-    if (playbackMode === "shuffle") {
-      if (queue.length === 1) return queueIndex;
-      let r = queueIndex;
-      while (r === queueIndex) r = Math.floor(Math.random() * queue.length);
-      return r;
-    }
-    return queueIndex + 1 < queue.length ? queueIndex + 1 : 0;
-  };
-
-  const pickPrevIndex = (): number => {
-    if (!queue.length) return -1;
-    if (playbackMode === "shuffle") {
-      if (queue.length === 1) return queueIndex;
-      let r = queueIndex;
-      while (r === queueIndex) r = Math.floor(Math.random() * queue.length);
-      return r;
-    }
-    return queueIndex > 0 ? queueIndex - 1 : queue.length - 1;
-  };
-
   const playNext = async () => {
-    if (!queue.length) return;
+    const q = queueRef.current;
+    if (!q.length) return;
     const nextIndex = pickNextIndex();
     if (nextIndex < 0) return;
-    const nextTrack = queue[nextIndex];
+    const nextTrack = q[nextIndex];
+
     setQueueIndex(nextIndex);
-    await playTrack(nextTrack, { queue, index: nextIndex, force: true });
+    indexRef.current = nextIndex;
+
+    await playTrack(nextTrack, { queue: q, index: nextIndex, force: true });
   };
 
   const playPrevious = async () => {
-    if (!queue.length) return;
+    const q = queueRef.current;
+    if (!q.length) return;
     const prevIndex = pickPrevIndex();
     if (prevIndex < 0) return;
-    const prevTrack = queue[prevIndex];
+    const prevTrack = q[prevIndex];
+
     setQueueIndex(prevIndex);
-    await playTrack(prevTrack, { queue, index: prevIndex, force: true });
+    indexRef.current = prevIndex;
+
+    await playTrack(prevTrack, { queue: q, index: prevIndex, force: true });
   };
 
   const togglePlayPause = async () => {
@@ -223,11 +271,11 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
       if (status.isLoaded && status.isPlaying) {
         await s.pauseAsync();
         setIsPlaying(false);
-        safeSetProgress(status.positionMillis ?? positionMillis, status.durationMillis ?? durationMillis);
+        safeSetProgress(status.positionMillis, status.durationMillis);
       } else if (status.isLoaded) {
         await s.playAsync();
         setIsPlaying(true);
-        safeSetProgress(status.positionMillis ?? positionMillis, status.durationMillis ?? durationMillis);
+        safeSetProgress(status.positionMillis, status.durationMillis);
       }
     } catch (err) {
       console.error("togglePlayPause error:", err);
