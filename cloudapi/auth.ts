@@ -41,3 +41,21 @@ export async function currentUserId(): Promise<string | null> {
   if (error) throw error;
   return user?.id ?? null;
 }
+export async function sendResetCode(email: string) {
+  const { error } = await supabase.auth.resetPasswordForEmail(email);
+  if (error) throw error;
+}
+
+export async function verifyResetCode(email: string, code: string) {
+  const { error } = await supabase.auth.verifyOtp({
+    email,
+    token: code,
+    type: "recovery",
+  });
+  if (error) throw error;
+}
+
+export async function updatePassword(newPassword: string) {
+  const { error } = await supabase.auth.updateUser({ password: newPassword });
+  if (error) throw error;
+}
