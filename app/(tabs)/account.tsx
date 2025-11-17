@@ -30,12 +30,24 @@ export default function Account() {
   ];
 
   useEffect(() => {
+    let unsub: { unsubscribe?: () => void } | undefined;
+  
     (async () => {
       const {
         data: { session },
       } = await supabase.auth.getSession();
       setUserEmail(session?.user?.email ?? null);
+      const { data } = supabase.auth.onAuthStateChange((_event, s) => {
+        setUserEmail(s?.user?.email ?? null);
+      });
+      unsub = data?.subscription;
     })();
+  
+    return () => {
+      try {
+        unsub?.unsubscribe?.();
+      } catch {}
+    };
   }, []);
 
   const runWithBusy = async (fn: () => Promise<void>, successMessage?: string) => {
