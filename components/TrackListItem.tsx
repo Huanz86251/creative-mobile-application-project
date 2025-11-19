@@ -5,7 +5,8 @@ import { usePlayer } from "../context/PlayerContext";
 
 type TrackListItemProps = {
   track: any;           // accept mixed shapes (iTunes or DB)
-
+  index?: number;       // kept for callers that pass it
+  allTracks?: any[];    // kept for callers that pass it
   onPress?: () => void; // optional override
 };
 
@@ -23,6 +24,8 @@ function normalizeTrack(t: any) {
 
 export const TrackListItem: React.FC<TrackListItemProps> = ({
   track,
+  index,     // not used, but declared to satisfy callers
+  allTracks, // not used, but declared to satisfy callers
   onPress,
 }) => {
   const { playTrack, currentTrackId, isPlaying } = usePlayer();
@@ -37,7 +40,10 @@ export const TrackListItem: React.FC<TrackListItemProps> = ({
 
     // PlayerContext expects its own Track shape; passing through as-is is fine
     // for your current PlayerContext; cast to silence TS.
-    await playTrack(track as any);
+    await playTrack(track as any, {
+      queue: Array.isArray(allTracks) ? (allTracks as any[]) : undefined,
+      index,
+    });
   };
 
   return (
