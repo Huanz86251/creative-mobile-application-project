@@ -8,6 +8,8 @@ import { getDownloadedIndex, removeDownloaded, clearAllDownloads } from "../stor
 import { getTracksByIds, type TrackRow } from "../cloudapi/tracks";
 import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
 import { usePlayer } from "../context/PlayerContext";
+import { DraggableMascot } from "../components/DraggableMascot";
+
 const FALLBACK_COVER = "https://via.placeholder.com/200x200.png?text=Download";
 
 type Row = Omit<Partial<TrackRow>, "id"> & { id: string; uri: string; downloadedUri?: string };
@@ -173,6 +175,7 @@ export default function Downloads() {
           }
         />
       </View>
+      <DraggableMascot />
     </SafeAreaView>
   );
 }

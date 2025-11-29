@@ -9,6 +9,7 @@ import { signOut } from "../../cloudapi/auth";
 import { notifyRecommendationNow} from "../../lib/notifications";
 import {pickAndSetBackgroundCover,clearBackground,setSolidBackgroundColor,} from "../../storage/background";
 import { useBackground } from "../../context/Background";
+import { DraggableMascot } from "../../components/DraggableMascot";
 
 export default function Account() {
   const router = useRouter();
@@ -213,6 +214,7 @@ export default function Account() {
           </Pressable>
         </Pressable>
       </Modal>
+      <DraggableMascot />
     </SafeAreaView>
   );
 }

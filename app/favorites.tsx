@@ -10,6 +10,7 @@ import { listMyFavorites, toggleFavorite } from "../cloudapi/favorites";
 import { getSignedDownloadUrl } from "../cloudapi/signedUrl";
 import { getDownloadedIndex, downloadTrack } from "../storage/downloader";
 import { usePlayer } from "../context/PlayerContext";
+import { DraggableMascot } from "../components/DraggableMascot";
 
 const FALLBACK_COVER = "https://via.placeholder.com/200x200.png?text=Music";
 
@@ -275,6 +276,7 @@ export default function Favorites() {
           }
         />
       </View>
+      <DraggableMascot />
     </SafeAreaView>
   );
 }

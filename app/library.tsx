@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState, useCallback, useMemo } from "react";
+import { DraggableMascot } from "../components/DraggableMascot";
 import {
   View,
   InteractionManager,
@@ -26,6 +27,8 @@ import { downloadTrack, getDownloadedIndex } from "../storage/downloader";
 import { TrackListItem } from "../components/TrackListItem";
 import { usePlayer } from "../context/PlayerContext";
 
+
+
 type Row = TrackRow & {
   likes_count?: number;
   liked?: boolean;
@@ -35,6 +38,8 @@ type Row = TrackRow & {
 };
 
 const DETAIL_PLACEHOLDER = "https://via.placeholder.com/300x300.png?text=No+Art";
+
+
 
 export default function Library() {
   const router = useRouter();
@@ -402,6 +407,8 @@ export default function Library() {
         onPlay={() => detailTrack && handlePlay(detailTrack)}
         canLike={canLike}
       />
+      <DraggableMascot />
+
     </SafeAreaView>
   );
 }

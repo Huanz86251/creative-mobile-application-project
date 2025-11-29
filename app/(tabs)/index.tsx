@@ -5,7 +5,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { TrackListItem } from "../../components/TrackListItem";   
 import { Track } from "../../features/tracks/tracksSlice";       
-
+import { DraggableMascot } from "../../components/DraggableMascot";
 export default function DiscoverScreen() {
   const [tracks, setTracks] = useState<Track[]>([]);
   const [loading, setLoading] = useState(true);
@@ -108,6 +108,7 @@ export default function DiscoverScreen() {
         )}
 
       </View>
+      <DraggableMascot />
     </SafeAreaView>
   );
 }
