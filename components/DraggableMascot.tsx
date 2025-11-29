@@ -444,7 +444,7 @@ export const DraggableMascot = () => {
   const styles = StyleSheet.create({
     container: {
       position: "absolute",
-      bottom: 24,
+      top: "40%",
       right: 16,
       backgroundColor: "transparent",
       alignItems: "flex-end",
