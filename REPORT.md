@@ -8,6 +8,7 @@
 | Zixuan Huang |1006288376 | chrim.huang@mail.utoronto.ca |
 
 ## Motivation
+Music apps are an ideal canvas for showcasing real-world mobile capabilities. They combine always-on experiences—continuous audio playback, background controls, offline caching, push notifications, and smooth navigation—into a single product that users instantly understand. We were motivated to build this project because delivering a “simple” listening experience is surprisingly hard: keeping playback reliable across screens and app states, supporting downloads for unreliable connectivity, and making the interface feel fast and intuitive. By tackling these challenges, we’re solving a practical problem—frictionless, dependable music playback on the go—while demonstrating core mobile engineering skills that matter in production apps.
 - Provide a lightweight, ad-free music experience that highlights core native capabilities: streaming, background playback, offline caching, and notifications.
 - Practice the course stack end-to-end (Expo Router + TypeScript + Supabase) while avoiding licensing risk by relying on previews/royalty-free tracks.
 - Target users: students and enthusiasts who want quick discovery, simple queues, and offline access without heavy commercial apps.
