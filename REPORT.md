@@ -34,11 +34,13 @@
 - **Playback & Queue**: Play/pause/seek, previous/next, shuffle/sequential/repeat-one, mini now-playing bar, and background-safe audio.
 - **Track Details**: Supabase-backed metadata with genres/tags/themes; view artwork, duration, and storage path.
 - **Favorites**: Toggle likes (Supabase RPC), live like counts, and favorites list.
-- **Offline Downloads**: Signed URL downloads to device storage, download index in AsyncStorage, delete/clear actions, and offline playback from locally saved files.
-- **Authentication**: Email/password sign-up, verification, login, logout, password reset (code), and session persistence.
 - **Notifications**: Daily recommendation scheduling plus download status notifications with deep links to Library/Downloads.
 - **Extras**: Draggable mascot, decorative gradients/cards, and guarded connectivity checks for downloads.
-
+### Advanced Features
+- **Authentication**: Email/password sign-up, verification, login, logout, password reset (code), and session persistence.
+- **Offline Downloads**: Signed URL downloads to device storage, download index in AsyncStorage, delete/clear actions, and offline playback from locally saved files.
+- **Sharing**: Users can share songs via dynamic links using Expo Sharing and deep linking.
+- **Animation**: Animated player bar smoothly slides up and down, with interactive Play button press feedback for a responsive experience.
 ## User Guide
 1) **Install**  
    - Option A: Run locally with Expo Go (see Development Guide).  
@@ -64,6 +66,9 @@
 ## Development Guide
 1) **Prerequisites**  
    - Node 18+, npm, Git, Expo CLI (`npm i -g expo`), Android Studio or iOS simulators for native testing. Real device recommended for notifications/file-system tests.
+   - **Expo account login required for EAS builds:**  
+     Run `npx expo login` and enter your Expo credentials before using `eas build` or `eas submit`.
+
 2) **Environment variables**  
    - Create `.env` in the project root:  
      ```
@@ -100,3 +105,4 @@
 - **Challenges**: File-system API differences across platforms required fallbacks; notification testing demanded real devices; handling signed URLs and offline resilience needed careful caching.  
 - **Future work**: Finish in-app playback for Supabase-hosted tracks directly from signed URLs, richer playlist management, and broader automated tests (E2E with Detox).  
 - **Closing**: Delivered a functional, offline-capable music app with authenticated profiles and a deployable build, meeting the course requirements while showcasing practical mobile patterns.
+
