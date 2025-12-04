@@ -35,13 +35,13 @@ Music apps are an ideal canvas for showcasing real-world mobile capabilities. Th
 - **Playback & Queue**: Play/pause/seek, previous/next, shuffle/sequential/repeat-one, mini now-playing bar, and background-safe audio.
 - **Track Details**: Supabase-backed metadata with genres/tags/themes; view artwork, duration, and storage path.
 - **Favorites**: Toggle likes (Supabase RPC), live like counts, and favorites list.
-- **Notifications**: Daily recommendation scheduling plus download status notifications with deep links to Library/Downloads.
-- **Extras**: Draggable mascot, decorative gradients/cards, and guarded connectivity checks for downloads.
+- **Notifications**: User-triggered personalized recommendation notifications (backed by a small embedding model: we pre-encode each track’s title, description, and tags into vectors stored in Supabase, and when the user presses the button a Supabase RPC runs vector-similarity search against the embeddings of their three most recent likes to pick a similar track) plus download status notifications with deep links to Library/Downloads.
+- **Extras**: Decorative gradients/cards, and guarded connectivity checks for downloads.
 ### Advanced Features
 - **Authentication**: Email/password sign-up, verification, login, logout, password reset (code), and session persistence.
 - **Offline Downloads**: Signed URL downloads to device storage, download index in AsyncStorage, delete/clear actions, and offline playback from locally saved files.
 - **Sharing**: Users can share songs via dynamic links using Expo Sharing and deep linking.
-- **Animation**: Animated player bar smoothly slides up and down, with interactive Play button press feedback for a responsive experience.
+- **Animation**: Animated player bar smoothly slides up and down, with interactive Play button press feedback for a responsive experience. A draggable Lottie-based mascot that periodically (or on tap) shows curated micro-messages (music tips, self-care reminders, fun facts) in a speech bubble.
 ## User Guide
 1) **Install**  
    - Option A: Run locally with Expo Go (see Development Guide).  
@@ -59,11 +59,11 @@ Music apps are an ideal canvas for showcasing real-world mobile capabilities. Th
 7) **Library**  
    - Browse Supabase-hosted catalog (genre/tags/themes). Open a track to view metadata, like, or download.
 8) **Notifications**  
-   - Accept notification permission. Daily recommendations can be scheduled; download status notifications deep link you into Downloads.
+   - Accept notification permission. Use the in-app “Notify now” button  in the Account page to trigger a one-off recommendation notification based on your three most recently liked songs. Download status notifications deep link you into Downloads.
 9) **Account management**  
    - In Login view: sign out, resend verification, or reset password. Session persists between launches.
-
-
+10) **Background customization**  
+   - In the Account screen, you can personalize the app background either by choosing from preset color themes or by uploading a photo.
 ## Development Guide
 1) **Prerequisites**  
    - Node 18+, npm, Git, Expo CLI (`npm i -g expo`), Android Studio or iOS simulators for native testing. Real device recommended for notifications/file-system tests.
@@ -90,7 +90,10 @@ Music apps are an ideal canvas for showcasing real-world mobile capabilities. Th
    - On device, tap the in-app button to trigger recommendation notification; download a track to see download start/success notifications; allow permission dialogs.
 7) **Quality checks**  
    - `npm test` runs Jest/RTL tests (limited coverage). Keep Expo/TypeScript warnings clean.
-
+8) **Credentials**  
+   - The Supabase `.env` file containing sensitive API keys has been submitted to TA via email, and the password for zip has been sent in a separate email.  
+   - **Credentials sent to TA.**
+     
 ## Deployment Information
 - **Android build**: Prebuilt APK at `application-e8b22559-9e53-4d55-9fa6-e73bec75f37b.apk`. Install via `adb install <apk>` or device file manager.  
 - **EAS Build**: `eas build --platform android` (and `--platform ios` if provisioned). Config in `eas.json` and `app.config.ts`.  
