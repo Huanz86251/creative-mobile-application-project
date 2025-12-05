@@ -110,4 +110,5 @@ Music apps are an ideal canvas for showcasing real-world mobile capabilities. Th
 - **Challenges**: File-system API differences across platforms required fallbacks; notification testing demanded real devices; handling signed URLs and offline resilience needed careful caching.  
 - **Future work**: Finish in-app playback for Supabase-hosted tracks directly from signed URLs, richer playlist management, and broader automated tests (E2E with Detox).  
 - **Closing**: Delivered a functional, offline-capable music app with authenticated profiles and a deployable build, meeting the course requirements while showcasing practical mobile patterns.
-
+## Video Demo
+- https://drive.google.com/file/d/1LVH6YpAV11tj0_ebemgpzuYecW0zxRHP/view?usp=sharing
