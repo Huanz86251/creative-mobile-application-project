@@ -1,13 +1,12 @@
-// components/TrackListItem.tsx
 import React from "react";
 import { View, Text, Image, TouchableOpacity, StyleSheet } from "react-native";
 import { usePlayer } from "../context/PlayerContext";
 
 type TrackListItemProps = {
-  track: any;           // accept mixed shapes (iTunes or DB)
-  index?: number;       // kept for callers that pass it
-  allTracks?: any[];    // kept for callers that pass it
-  onPress?: () => void; // optional override
+  track: any;           
+  index?: number;       
+  allTracks?: any[];    
+  onPress?: () => void; 
 };
 
 const FALLBACK_COVER =
@@ -24,22 +23,18 @@ function normalizeTrack(t: any) {
 
 export const TrackListItem: React.FC<TrackListItemProps> = ({
   track,
-  index,     // not used, but declared to satisfy callers
-  allTracks, // not used, but declared to satisfy callers
+  index,     
+  allTracks, 
   onPress,
 }) => {
   const { playTrack, currentTrackId, isPlaying } = usePlayer();
   const { id, title, artist, cover } = normalizeTrack(track);
 
-  // Compare by normalized id
   const isThisPlaying = !!id && currentTrackId === id && isPlaying;
 
   const handlePress = async () => {
-    // Allow parent override (e.g., navigate to details instead)
     if (onPress) return onPress();
 
-    // PlayerContext expects its own Track shape; passing through as-is is fine
-    // for your current PlayerContext; cast to silence TS.
     await playTrack(track as any, {
       queue: Array.isArray(allTracks) ? (allTracks as any[]) : undefined,
       index,

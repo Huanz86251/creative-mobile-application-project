@@ -23,7 +23,7 @@ const FSStatics = {
 
 let Network: any = null;                                        
 try { Network = require("expo-network"); } catch {}
-const SAVED_INDEX_KEY = "downloadedTracksIndex"; // { [trackId]: uri }
+const SAVED_INDEX_KEY = "downloadedTracksIndex"; 
 
 function sanitizeFilename(name: string): string {
   return name.replace(/[\\/:*?"<>|\s]+/g, "_");
@@ -88,7 +88,7 @@ export async function downloadTrack(trackId: string, signedUrl: string, filename
   }
 
   try {
-    // —— Web：交给浏览器下载
+
     if (Platform.OS === "web") {
       try { window.open(signedUrl, "_blank"); } catch {}
       const fake = `browser://${safe}`;
@@ -97,7 +97,6 @@ export async function downloadTrack(trackId: string, signedUrl: string, filename
       return fake;
     }
 
-    // —— 无文件系统（如某些受限运行环境）
     const base = getBaseDir();
     if (!base) {
       try { await Linking.openURL(signedUrl); } catch {}
@@ -111,7 +110,7 @@ export async function downloadTrack(trackId: string, signedUrl: string, filename
     await ensureDirExists(dir);
     const dest = dir + safe;
 
-    // —— 新 API
+ 
     if (FSN?.File) {
       const parent = new FSN.Directory(dir);
       if (!parent.exists) await parent.create();
@@ -129,7 +128,7 @@ export async function downloadTrack(trackId: string, signedUrl: string, filename
       return out.uri;
     }
 
-    // —— 旧 API（legacy）
+  
     if (FSLegacy?.downloadAsync) {
       const exists = await (FSLegacy as any).getInfoAsync(dest);
       if (exists.exists) {
@@ -145,7 +144,7 @@ export async function downloadTrack(trackId: string, signedUrl: string, filename
       return uri;
     }
 
-    // —— 静态兜底
+  
     const exists = await FSStatics.getInfoAsync(dest);
     if (exists.exists) {
       await remember(trackId, dest);

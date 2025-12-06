@@ -209,7 +209,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
         return;
       }
 
-      // 仅当不是 force 时才切换为暂停/继续
       if (!options?.force && currentTrack?.trackId === track.trackId && soundRef.current) {
         await togglePlayPause();
         return;
@@ -224,7 +223,6 @@ export const PlayerProvider = ({ children }: { children: ReactNode }) => {
           : nextQueue.findIndex((t) => t.trackId === track.trackId);
       if (nextIndex < 0) nextIndex = 0;
 
-      // 同步 state & refs
       setQueue(nextQueue);
       setQueueIndex(nextIndex);
       queueRef.current = nextQueue;
