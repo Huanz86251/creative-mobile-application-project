@@ -68,7 +68,7 @@ Music apps are a great way to showcase real-world mobile development skills beca
 1) **Prerequisites**  
    - Node 18+, npm, Git, Expo CLI (`npm i -g expo`), Android Studio or iOS simulators for native testing. Real device recommended for notifications/file-system tests.
    - **Expo account login required:**  
-     Run `npx expo login` and enter your Expo credentials before using `eas build` or `eas submit`.
+     Run `npx expo login` and enter your Expo credentials before using `eas build`,`eas submit` or `npx expo start`.
 
 2) **Environment variables**  
    - Create `.env` in the project root:  
@@ -79,7 +79,7 @@ Music apps are a great way to showcase real-world mobile development skills beca
    - Injected via `app.config.ts` and used by `lib/supabase.ts`.
 3) **Install & run**  
    - `npm install`  
-   - `npm start` (press `a` for Android emulator, `i` for iOS simulator, or scan QR with Expo Go).  
+   - `npx expo start` (press `a` for Android emulator, `i` for iOS simulator, or scan QR with Expo Go).  
 4) **Backend setup (Supabase)**  
    - Tables: `tracks` (id, title, artist, duration_sec, object_path, artwork_url, instrumental, is_public, genre, language, tags, themes), `user_favorites` (track_id FK), and Storage bucket containing track assets matching `object_path`.  
    - RPCs used: `search_tracks`, `toggle_favorite`, `get_likes_for_tracks`, `list_my_favorites`, `recommend_from_last_likes`. Policies should allow authenticated users to read public tracks and manage their own favorites.  
