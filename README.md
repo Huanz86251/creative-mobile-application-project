@@ -95,8 +95,8 @@ Music apps are a great way to showcase real-world mobile development skills beca
    - **Credentials sent to TA.**
      
 ## Deployment Information
-- **Android build**: Prebuilt APK at `application-e8b22559-9e53-4d55-9fa6-e73bec75f37b.apk`. Install via `adb install <apk>` or device file manager.  
-- **EAS Build**: `eas build --platform android` (and `--platform ios` if provisioned). Config in `eas.json` and `app.config.ts`.  
+- **Android build**: Prebuilt APK at `application-e8b22559-9e53-4d55-9fa6-e73bec75f37b.apk`. Install via device file manager.  
+- **EAS Build**: The app is built with Expo EAS Build (configuration in `eas.json` and `app.config.ts`).
 - Distribution is mobile-first; no separate web/K8s/Swarm deployment.
 
 ## Individual Contributions (align with Git history)
