@@ -38,7 +38,7 @@ export const PlayerControls = ({
   useEffect(() => {
     if (currentTrack?.previewUrl) {
       playTrack(currentTrack.previewUrl);
-      onTrackChange?.(currentIndex); // 👈 通知父组件更新 UI
+      onTrackChange?.(currentIndex); 
     }
     return () => {
       sound?.unloadAsync();
