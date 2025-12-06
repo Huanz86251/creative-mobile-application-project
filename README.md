@@ -67,7 +67,6 @@ Music apps are a great way to showcase real-world mobile development skills beca
 ## Development Guide
 1) **Prerequisites**  
    - Node 18+, npm, Git, Expo CLI (`npm i -g expo`), Android Studio or iOS simulators for native testing. Real device recommended for notifications/file-system tests.
-   - We recommend running `npx expo login` once on the dev machine before starting the app, so that `npx expo start` can connect reliably to emulators / Expo Go.  
    - **Expo account login required:**  
      Run `npx expo login` and enter your Expo credentials before using `eas build` or `eas submit`.
 
